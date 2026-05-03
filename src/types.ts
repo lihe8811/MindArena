@@ -90,13 +90,34 @@ export interface PerformanceData {
   milestoneProgress: number;
 }
 
-export interface KnowledgeModule {
+export interface KnowledgeDocument {
   id: string;
   title: string;
   category: string;
-  difficulty: 'Beginner' | 'Intermediate' | 'Advanced' | 'Elite';
-  status: 'Active' | 'Locked' | 'Completed';
-  progress: number;
+  sourceType: 'rule' | 'file';
+  status: 'Indexed' | 'Processing' | 'Failed';
+  summary: string;
+  chunkCount: number;
+  wordCount: number;
+  createdAt: string;
+  fileName?: string;
+  mimeType?: string;
+}
+
+export interface KnowledgeSearchResult {
+  id: string;
+  documentId: string;
+  documentTitle: string;
+  category: string;
+  sourceType: 'rule' | 'file';
+  excerpt: string;
+  score: number;
+}
+
+export interface KnowledgeSearchResponse {
+  query: string;
+  total: number;
+  results: KnowledgeSearchResult[];
 }
 
 export interface AppBootstrap {
@@ -107,6 +128,6 @@ export interface AppBootstrap {
   dashboard: DashboardData;
   history: HistoryItem[];
   performance: PerformanceData;
-  knowledgeBase: KnowledgeModule[];
+  knowledgeBase: KnowledgeDocument[];
   activeDebate: ActiveDebate | null;
 }

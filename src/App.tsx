@@ -7,8 +7,17 @@ import { Arena } from './pages/Arena';
 import { History } from './pages/History';
 import { Performance } from './pages/Performance';
 import { KnowledgeBase } from './pages/KnowledgeBase';
-import { createDebate, getBootstrap, login, logout, sendDebateMessage } from './lib/api';
-import type { AppBootstrap, View } from './types';
+import {
+  createDebate,
+  createKnowledgeRule,
+  getBootstrap,
+  login,
+  logout,
+  searchKnowledge,
+  sendDebateMessage,
+  uploadKnowledgeFile,
+} from './lib/api';
+import type { AppBootstrap, KnowledgeSearchResponse, View } from './types';
 
 const VIEW_META: Record<Exclude<View, 'landing'>, { title: string; subtitle: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Your debate workspace' },
@@ -26,6 +35,7 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [knowledgeSearchResult, setKnowledgeSearchResult] = useState<KnowledgeSearchResponse | null>(null);
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -110,6 +120,62 @@ function App() {
     }
   };
 
+  const handleCreateKnowledgeRule = async (payload: {
+    title: string;
+    category: string;
+    content: string;
+  }) => {
+    setBusy(true);
+    setError(null);
+
+    try {
+      const response = await createKnowledgeRule(payload);
+      if (appData) {
+        setAppData({ ...appData, knowledgeBase: response.documents });
+      }
+      setCurrentView('knowledge-base');
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to save rule.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleUploadKnowledgeFile = async (payload: {
+    file: File;
+    title?: string;
+    category?: string;
+  }) => {
+    setBusy(true);
+    setError(null);
+
+    try {
+      const response = await uploadKnowledgeFile(payload);
+      if (appData) {
+        setAppData({ ...appData, knowledgeBase: response.documents });
+      }
+      setCurrentView('knowledge-base');
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to upload file.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleKnowledgeSearch = async (query: string) => {
+    setBusy(true);
+    setError(null);
+
+    try {
+      const response = await searchKnowledge(query);
+      setKnowledgeSearchResult(response);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to search knowledge base.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const filteredHistory = useMemo(() => {
     if (!appData) return [];
     if (!searchQuery.trim()) return appData.history;
@@ -167,7 +233,16 @@ function App() {
       case 'performance':
         return <Performance data={appData.performance} />;
       case 'knowledge-base':
-        return <KnowledgeBase modules={filteredKnowledge} />;
+        return (
+          <KnowledgeBase
+            documents={filteredKnowledge}
+            onCreateRule={handleCreateKnowledgeRule}
+            onUploadFile={handleUploadKnowledgeFile}
+            onSearch={handleKnowledgeSearch}
+            searchResult={knowledgeSearchResult}
+            isSubmitting={busy}
+          />
+        );
       default:
         return (
           <Dashboard

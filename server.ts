@@ -1,4 +1,5 @@
 import express from 'express';
+import multer from 'multer';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type {
@@ -6,16 +7,22 @@ import type {
   AppBootstrap,
   DashboardData,
   HistoryItem,
-  KnowledgeModule,
   PerformanceData,
   UserProfile,
 } from './src/types';
+import {
+  createKnowledgeEntry,
+  createKnowledgeFromFile,
+  listKnowledgeDocuments,
+  searchKnowledgeBase,
+} from './knowledgeBaseStore';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = Number(process.env.PORT ?? 3001);
+const upload = multer({ storage: multer.memoryStorage() });
 
 app.use(express.json());
 
@@ -133,57 +140,6 @@ const performance: PerformanceData = {
   milestoneProgress: 74,
 };
 
-const knowledgeBase: KnowledgeModule[] = [
-  {
-    id: 'kb-1',
-    title: 'Socratic Questioning',
-    category: 'Core Strategy',
-    difficulty: 'Elite',
-    status: 'Completed',
-    progress: 100,
-  },
-  {
-    id: 'kb-2',
-    title: 'Logical Fallacies',
-    category: 'Defensive Rhetoric',
-    difficulty: 'Beginner',
-    status: 'Active',
-    progress: 42,
-  },
-  {
-    id: 'kb-3',
-    title: 'Kantian Deontology',
-    category: 'Ethics',
-    difficulty: 'Advanced',
-    status: 'Locked',
-    progress: 0,
-  },
-  {
-    id: 'kb-4',
-    title: 'Heuristics and Biases',
-    category: 'Cognitive Psychology',
-    difficulty: 'Intermediate',
-    status: 'Active',
-    progress: 12,
-  },
-  {
-    id: 'kb-5',
-    title: 'Game Theory Matrix',
-    category: 'Strategy',
-    difficulty: 'Elite',
-    status: 'Locked',
-    progress: 0,
-  },
-  {
-    id: 'kb-6',
-    title: 'Stoic Resolve',
-    category: 'Emotional Intelligence',
-    difficulty: 'Beginner',
-    status: 'Active',
-    progress: 88,
-  },
-];
-
 let session = {
   authenticated: false,
   user: null as UserProfile | null,
@@ -197,7 +153,7 @@ function buildBootstrap(): AppBootstrap {
     dashboard,
     history,
     performance,
-    knowledgeBase,
+    knowledgeBase: listKnowledgeDocuments(),
     activeDebate,
   };
 }
@@ -244,6 +200,70 @@ app.post('/api/session/logout', (_req, res) => {
   session = { authenticated: false, user: null };
   activeDebate = null;
   res.json({ ok: true });
+});
+
+app.get('/api/knowledge-base', (_req, res) => {
+  res.json({
+    documents: listKnowledgeDocuments(),
+  });
+});
+
+app.post('/api/knowledge-base/rules', (req, res) => {
+  const title = String(req.body?.title ?? '').trim();
+  const category = String(req.body?.category ?? 'Rules').trim();
+  const content = String(req.body?.content ?? '').trim();
+
+  if (!content) {
+    res.status(400).send('Rule content is required.');
+    return;
+  }
+
+  try {
+    const document = createKnowledgeEntry({
+      title: title || 'New Rule Set',
+      category,
+      sourceType: 'rule',
+      content,
+    });
+
+    res.status(201).json({
+      document,
+      documents: listKnowledgeDocuments(),
+    });
+  } catch (error) {
+    res.status(400).send(error instanceof Error ? error.message : 'Failed to store rules.');
+  }
+});
+
+app.post('/api/knowledge-base/upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    res.status(400).send('Please upload a file.');
+    return;
+  }
+
+  try {
+    const document = createKnowledgeFromFile({
+      fileName: req.file.originalname,
+      mimeType: req.file.mimetype || 'application/octet-stream',
+      content: req.file.buffer,
+      title: String(req.body?.title ?? ''),
+      category: String(req.body?.category ?? 'Uploaded File'),
+    });
+
+    res.status(201).json({
+      document,
+      documents: listKnowledgeDocuments(),
+    });
+  } catch (error) {
+    res.status(400).send(error instanceof Error ? error.message : 'Failed to process file.');
+  }
+});
+
+app.post('/api/knowledge-base/search', (req, res) => {
+  const query = String(req.body?.query ?? '').trim();
+  const limit = Math.max(1, Math.min(20, Number(req.body?.limit ?? 8)));
+
+  res.json(searchKnowledgeBase(query, limit));
 });
 
 app.post('/api/debates', (req, res) => {

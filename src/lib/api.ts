@@ -1,11 +1,19 @@
-import type { ActiveDebate, AppBootstrap, DebateSetup } from '@/types';
+import type {
+  ActiveDebate,
+  AppBootstrap,
+  DebateSetup,
+  KnowledgeDocument,
+  KnowledgeSearchResponse,
+} from '@/types';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
+    headers: init?.body instanceof FormData
+      ? init?.headers
+      : {
+          'Content-Type': 'application/json',
+          ...(init?.headers ?? {}),
+        },
     ...init,
   });
 
@@ -45,5 +53,49 @@ export function sendDebateMessage(content: string) {
   return request<ActiveDebate>('/api/debates/current/messages', {
     method: 'POST',
     body: JSON.stringify({ content }),
+  });
+}
+
+export function listKnowledgeBase() {
+  return request<{ documents: KnowledgeDocument[] }>('/api/knowledge-base');
+}
+
+export function createKnowledgeRule(payload: {
+  title: string;
+  category: string;
+  content: string;
+}) {
+  return request<{ document: KnowledgeDocument; documents: KnowledgeDocument[] }>(
+    '/api/knowledge-base/rules',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export function uploadKnowledgeFile(payload: {
+  file: File;
+  title?: string;
+  category?: string;
+}) {
+  const formData = new FormData();
+  formData.append('file', payload.file);
+  if (payload.title) formData.append('title', payload.title);
+  if (payload.category) formData.append('category', payload.category);
+
+  return request<{ document: KnowledgeDocument; documents: KnowledgeDocument[] }>(
+    '/api/knowledge-base/upload',
+    {
+      method: 'POST',
+      body: formData,
+    },
+  );
+}
+
+export function searchKnowledge(query: string, limit = 8) {
+  return request<KnowledgeSearchResponse>('/api/knowledge-base/search', {
+    method: 'POST',
+    body: JSON.stringify({ query, limit }),
   });
 }
