@@ -6,6 +6,7 @@ import type {
   KnowledgeDocument,
   KnowledgeDocumentDetail,
   KnowledgeSearchResponse,
+  UserSettings,
 } from '@/types';
 
 const AUTH_TOKEN_KEY = 'mindarena.auth.token';
@@ -155,5 +156,16 @@ export function reindexKnowledgeDocument(documentId: string) {
 export function deleteKnowledgeDocument(documentId: string) {
   return request<{ documents: KnowledgeDocument[] }>(`/api/knowledge-base/${documentId}`, {
     method: 'DELETE',
+  });
+}
+
+export function getSettings() {
+  return request<{ settings: UserSettings }>('/api/settings');
+}
+
+export function updateSettings(payload: UserSettings) {
+  return request<{ user: AppBootstrap['session']['user']; settings: UserSettings }>('/api/settings', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
   });
 }

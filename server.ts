@@ -10,11 +10,13 @@ import {
   createDebateForUser,
   getActiveDebate,
   getSessionFromToken,
+  getUserSettings,
   listUserHistory,
   loginUser,
   logoutSession,
   registerUser,
   requireUserFromToken,
+  updateUserSettings,
 } from './appStore';
 import {
   createKnowledgeEntry,
@@ -109,6 +111,7 @@ function buildBootstrap(req: Request): AppBootstrap {
       },
       knowledgeBase: [],
       activeDebate: null,
+      settings: null,
     };
   }
 
@@ -119,6 +122,7 @@ function buildBootstrap(req: Request): AppBootstrap {
     performance: buildPerformanceForUser(session.user.id),
     knowledgeBase: listKnowledgeDocuments(session.user.id),
     activeDebate: getActiveDebate(session.user.id),
+    settings: getUserSettings(session.user.id),
   };
 }
 
@@ -175,6 +179,48 @@ app.post('/api/session/login', (req, res) => {
 app.post('/api/session/logout', (req, res) => {
   logoutSession(getAuthToken(req));
   res.json({ ok: true });
+});
+
+app.get('/api/settings', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  res.json({
+    settings: getUserSettings(user.id),
+  });
+});
+
+app.put('/api/settings', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  const displayName = String(req.body?.displayName ?? '').trim();
+  const title = String(req.body?.title ?? '').trim();
+
+  if (!displayName || !title) {
+    res.status(400).send('Display name and title are required.');
+    return;
+  }
+
+  try {
+    res.json(
+      updateUserSettings(user.id, {
+        displayName,
+        title,
+        defaultStance: req.body?.defaultStance === 'Opponent' ? 'Opponent' : 'Proponent',
+        defaultRigor: Number(req.body?.defaultRigor ?? 3),
+        emailNotifications: Boolean(req.body?.emailNotifications),
+        rememberSession: Boolean(req.body?.rememberSession),
+        compactSidebar: Boolean(req.body?.compactSidebar),
+        autoOpenArena: Boolean(req.body?.autoOpenArena),
+        theme: ['system', 'light', 'dark'].includes(String(req.body?.theme))
+          ? String(req.body?.theme) as 'system' | 'light' | 'dark'
+          : 'system',
+      }),
+    );
+  } catch (error) {
+    res.status(400).send(error instanceof Error ? error.message : 'Unable to update settings.');
+  }
 });
 
 app.get('/api/knowledge-base', (req, res) => {

@@ -60,6 +60,7 @@ function NavContent({
             History,
             BarChart2,
             Library,
+            Settings,
           }[route.icon] || Home;
 
           const isActive = currentView === route.id;
@@ -164,9 +165,10 @@ interface TopBarProps {
   subtitle?: string;
   user: UserProfile | null;
   onToggleSidebar?: () => void;
+  onOpenSettings?: () => void;
 }
 
-export function TopBar({ onSearch, title, subtitle, user, onToggleSidebar }: TopBarProps) {
+export function TopBar({ onSearch, title, subtitle, user, onToggleSidebar, onOpenSettings }: TopBarProps) {
   return (
     <header className="bg-background/80 backdrop-blur-md fixed top-0 left-0 right-0 z-50 border-b border-outline-variant flex justify-between items-center w-full px-6 h-14">
       <div className="flex items-center gap-4 md:gap-8">
@@ -196,7 +198,11 @@ export function TopBar({ onSearch, title, subtitle, user, onToggleSidebar }: Top
         <button className="p-2 text-secondary hover:bg-surface-container-high hover:text-on-surface rounded-full transition-all">
           <Bell className="w-5 h-5" />
         </button>
-        <button className="hidden md:inline-flex p-2 text-secondary hover:bg-surface-container-high hover:text-on-surface rounded-full transition-all">
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          className="hidden md:inline-flex p-2 text-secondary hover:bg-surface-container-high hover:text-on-surface rounded-full transition-all"
+        >
           <Settings className="w-5 h-5" />
         </button>
         <div className="w-8 h-8 rounded-full border border-outline-variant bg-primary/10 text-primary overflow-hidden cursor-pointer hover:ring-2 ring-primary/20 transition-all flex items-center justify-center text-xs font-black">

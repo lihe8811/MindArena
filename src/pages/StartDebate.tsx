@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Sparkles, Swords } from 'lucide-react';
 import type { DebateSetup, KnowledgeDocument } from '@/types';
 
@@ -6,6 +6,8 @@ interface StartDebateProps {
   onCreateDebate: (payload: DebateSetup) => Promise<void>;
   isSubmitting?: boolean;
   knowledgeDocuments: KnowledgeDocument[];
+  defaultStance?: DebateSetup['stance'];
+  defaultRigor?: number;
 }
 
 const prompts = [
@@ -14,13 +16,27 @@ const prompts = [
   'Governments should regulate addictive recommendation algorithms.',
 ];
 
-export function StartDebate({ onCreateDebate, isSubmitting, knowledgeDocuments }: StartDebateProps) {
+export function StartDebate({
+  onCreateDebate,
+  isSubmitting,
+  knowledgeDocuments,
+  defaultStance = 'Proponent',
+  defaultRigor = 3,
+}: StartDebateProps) {
   const [topic, setTopic] = useState(prompts[0]);
-  const [stance, setStance] = useState<DebateSetup['stance']>('Proponent');
-  const [rigor, setRigor] = useState(3);
+  const [stance, setStance] = useState<DebateSetup['stance']>(defaultStance);
+  const [rigor, setRigor] = useState(defaultRigor);
   const [selectedKnowledgeIds, setSelectedKnowledgeIds] = useState<string[]>([]);
 
   const rigorLabel = useMemo(() => ['Warmup', 'Casual', 'Focused', 'Competitive', 'Tournament'][rigor - 1], [rigor]);
+
+  useEffect(() => {
+    setStance(defaultStance);
+  }, [defaultStance]);
+
+  useEffect(() => {
+    setRigor(defaultRigor);
+  }, [defaultRigor]);
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">

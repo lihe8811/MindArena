@@ -7,21 +7,24 @@ import { Arena } from './pages/Arena';
 import { History } from './pages/History';
 import { Performance } from './pages/Performance';
 import { KnowledgeBase } from './pages/KnowledgeBase';
+import { Settings } from './pages/Settings';
 import {
   createDebate,
   createKnowledgeRule,
   deleteKnowledgeDocument as deleteKnowledgeDocumentRequest,
   getBootstrap,
   getKnowledgeDocument,
+  getSettings,
   login,
   register,
   reindexKnowledgeDocument as reindexKnowledgeDocumentRequest,
   logout,
   searchKnowledge,
   sendDebateMessage,
+  updateSettings as updateSettingsRequest,
   uploadKnowledgeFile,
 } from './lib/api';
-import type { AppBootstrap, KnowledgeDocumentDetail, KnowledgeSearchResponse, View } from './types';
+import type { AppBootstrap, KnowledgeDocumentDetail, KnowledgeSearchResponse, UserSettings, View } from './types';
 
 const VIEW_META: Record<Exclude<View, 'landing'>, { title: string; subtitle: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Your debate workspace' },
@@ -30,6 +33,7 @@ const VIEW_META: Record<Exclude<View, 'landing'>, { title: string; subtitle: str
   history: { title: 'History', subtitle: 'Past sessions and results' },
   performance: { title: 'Performance', subtitle: 'Metrics and coaching notes' },
   'knowledge-base': { title: 'Knowledge Base', subtitle: 'Frameworks and study modules' },
+  settings: { title: 'Settings', subtitle: 'Profile, defaults, and workspace preferences' },
 };
 
 function App() {
@@ -277,6 +281,32 @@ function App() {
     }
   };
 
+  const handleSaveSettings = async (settings: UserSettings) => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const response = await updateSettingsRequest(settings);
+      const freshSettings = await getSettings();
+      if (appData) {
+        setAppData({
+          ...appData,
+          session: {
+            ...appData.session,
+            user: response.user,
+          },
+          settings: freshSettings.settings,
+        });
+      }
+      setNotice('Settings saved.');
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to save settings.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const filteredHistory = useMemo(() => {
     if (!appData) return [];
     if (!searchQuery.trim()) return appData.history;
@@ -331,6 +361,8 @@ function App() {
             onCreateDebate={handleCreateDebate}
             isSubmitting={busy}
             knowledgeDocuments={appData.knowledgeBase}
+            defaultStance={appData.settings?.defaultStance}
+            defaultRigor={appData.settings?.defaultRigor}
           />
         );
       case 'arena':
@@ -355,6 +387,8 @@ function App() {
             isSubmitting={busy}
           />
         );
+      case 'settings':
+        return <Settings settings={appData.settings} isSubmitting={busy} onSave={handleSaveSettings} />;
       default:
         return (
           <Dashboard
@@ -401,6 +435,7 @@ function App() {
           user={appData.session.user}
           onSearch={setSearchQuery}
           onToggleSidebar={() => setMobileSidebarOpen((open) => !open)}
+          onOpenSettings={() => setCurrentView('settings')}
         />
         
         <main className="flex-1 mt-14 px-6 py-8 overflow-y-auto">

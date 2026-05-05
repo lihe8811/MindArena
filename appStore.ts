@@ -10,6 +10,7 @@ import type {
   PerformanceData,
   RecentDebate,
   UserProfile,
+  UserSettings,
 } from './src/types';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -19,6 +20,7 @@ const storePath = path.join(dataDir, 'app-store.json');
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 
 interface StoredUser extends UserProfile {
+  settings: UserSettings;
   passwordHash: string;
 }
 
@@ -59,7 +61,12 @@ function ensureStoreFile() {
 
 function loadStore() {
   ensureStoreFile();
-  return JSON.parse(fs.readFileSync(storePath, 'utf8')) as AppStoreShape;
+  const store = JSON.parse(fs.readFileSync(storePath, 'utf8')) as AppStoreShape;
+  store.users = store.users.map((user) => ({
+    ...user,
+    settings: user.settings ?? defaultUserSettings(user.name),
+  }));
+  return store;
 }
 
 function saveStore(store: AppStoreShape) {
@@ -92,8 +99,22 @@ function verifyPassword(password: string, storedHash: string) {
 }
 
 function sanitizeUser(user: StoredUser): UserProfile {
-  const { passwordHash: _passwordHash, ...publicUser } = user;
+  const { passwordHash: _passwordHash, settings: _settings, ...publicUser } = user;
   return publicUser;
+}
+
+function defaultUserSettings(userName: string): UserSettings {
+  return {
+    displayName: userName,
+    title: 'Logic Apprentice',
+    defaultStance: 'Proponent',
+    defaultRigor: 3,
+    emailNotifications: true,
+    rememberSession: true,
+    compactSidebar: false,
+    autoOpenArena: true,
+    theme: 'system',
+  };
 }
 
 function createSessionPayload(user: StoredUser, token: string): AuthResponse {
@@ -127,6 +148,7 @@ export function registerUser(input: { name: string; email: string; password: str
     title: 'Logic Apprentice',
     streak: 1,
     createdAt: nowIso(),
+    settings: defaultUserSettings(input.name.trim() || email.split('@')[0] || 'Debater'),
     passwordHash: hashPassword(input.password),
   };
 
@@ -212,6 +234,45 @@ export function requireUserFromToken(token: string | null) {
     throw new Error('Authentication required.');
   }
   return session.user;
+}
+
+function getStoredUserById(userId: string) {
+  return loadStore().users.find((user) => user.id === userId) ?? null;
+}
+
+export function getUserSettings(userId: string) {
+  const user = getStoredUserById(userId);
+  if (!user) {
+    throw new Error('User not found.');
+  }
+  return user.settings;
+}
+
+export function updateUserSettings(
+  userId: string,
+  input: Partial<UserSettings> & Pick<UserSettings, 'displayName' | 'title'>,
+) {
+  const store = loadStore();
+  const user = store.users.find((entry) => entry.id === userId);
+
+  if (!user) {
+    throw new Error('User not found.');
+  }
+
+  user.settings = {
+    ...user.settings,
+    ...input,
+    defaultRigor: Math.max(1, Math.min(5, Number(input.defaultRigor ?? user.settings.defaultRigor))),
+  };
+  user.name = user.settings.displayName.trim() || user.name;
+  user.title = user.settings.title.trim() || user.title;
+
+  saveStore(store);
+
+  return {
+    user: sanitizeUser(user),
+    settings: user.settings,
+  };
 }
 
 function inferDebateStatus(messageCount: number): HistoryItem['status'] {

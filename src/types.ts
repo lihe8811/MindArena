@@ -5,7 +5,20 @@ export type View =
   | 'arena'
   | 'history'
   | 'performance'
-  | 'knowledge-base';
+  | 'knowledge-base'
+  | 'settings';
+
+export interface UserSettings {
+  displayName: string;
+  title: string;
+  defaultStance: 'Proponent' | 'Opponent';
+  defaultRigor: number;
+  emailNotifications: boolean;
+  rememberSession: boolean;
+  compactSidebar: boolean;
+  autoOpenArena: boolean;
+  theme: 'system' | 'light' | 'dark';
+}
 
 export interface UserProfile {
   id: string;
@@ -158,4 +171,5 @@ export interface AppBootstrap {
   performance: PerformanceData;
   knowledgeBase: KnowledgeDocument[];
   activeDebate: ActiveDebate | null;
+  settings: UserSettings | null;
 }
