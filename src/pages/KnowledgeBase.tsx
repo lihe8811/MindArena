@@ -1,138 +1,353 @@
-import React from 'react';
-import { motion } from 'motion/react';
-import { 
-  Library, 
-  Search, 
-  Filter, 
-  BookOpen, 
-  Lock, 
-  CheckCircle2, 
-  ArrowRight,
-  Sparkles,
-  Flame,
-  Zap,
-  Globe
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+import React, { useMemo, useState } from 'react';
+import { Eye, FileSearch, FileUp, RefreshCw, Scale, Search, Trash2 } from 'lucide-react';
+import type { KnowledgeDocument, KnowledgeDocumentDetail, KnowledgeSearchResponse } from '@/types';
 
-export function KnowledgeBase() {
-  const modules = [
-    { title: "Socratic Questioning", category: "Core Strategy", difficulty: "Elite", status: "Active", progress: 100, icon: <Sparkles className="text-secondary" /> },
-    { title: "Logical Fallacies v2", category: "Defensive Rhetoric", difficulty: "Beginner", status: "Active", progress: 42, icon: <Lock className="text-primary" /> },
-    { title: "Kantian Deontology", category: "Ethics", difficulty: "Advanced", status: "Locked", progress: 0, icon: <BookOpen className="text-secondary" /> },
-    { title: "Heuristics & Biases", category: "Cognitive Psychology", difficulty: "Intermediate", status: "Active", progress: 12, icon: <Zap className="text-primary" /> },
-    { title: "Game Theory Matrix", category: "Strategy", difficulty: "Elite", status: "Locked", progress: 0, icon: <Globe className="text-secondary" /> },
-    { title: "Stoic Resolve", category: "Emotional Intelligence", difficulty: "Beginner", status: "Active", progress: 88, icon: <Flame className="text-error" /> },
-  ];
+interface KnowledgeBaseProps {
+  documents: KnowledgeDocument[];
+  detail: KnowledgeDocumentDetail | null;
+  onCreateRule: (payload: { title: string; category: string; content: string }) => Promise<void>;
+  onUploadFile: (payload: { file: File; title?: string; category?: string }) => Promise<void>;
+  onSearch: (query: string) => Promise<void>;
+  onOpenDocument: (documentId: string) => Promise<void>;
+  onDeleteDocument: (documentId: string) => Promise<void>;
+  onReindexDocument: (documentId: string) => Promise<void>;
+  onCloseDetail: () => void;
+  searchResult: KnowledgeSearchResponse | null;
+  isSubmitting?: boolean;
+}
+
+export function KnowledgeBase({
+  documents,
+  detail,
+  onCreateRule,
+  onUploadFile,
+  onSearch,
+  onOpenDocument,
+  onDeleteDocument,
+  onReindexDocument,
+  onCloseDetail,
+  searchResult,
+  isSubmitting,
+}: KnowledgeBaseProps) {
+  const [ruleTitle, setRuleTitle] = useState('');
+  const [ruleCategory, setRuleCategory] = useState('Rules');
+  const [ruleContent, setRuleContent] = useState('');
+  const [fileTitle, setFileTitle] = useState('');
+  const [fileCategory, setFileCategory] = useState('Uploaded File');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [query, setQuery] = useState('');
+
+  const stats = useMemo(() => {
+    const chunkTotal = documents.reduce((sum, item) => sum + item.chunkCount, 0);
+    const wordTotal = documents.reduce((sum, item) => sum + item.wordCount, 0);
+
+    return {
+      documentTotal: documents.length,
+      chunkTotal,
+      wordTotal,
+    };
+  }, [documents]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12">
-        <div className="space-y-1">
-          <h2 className="text-4xl font-bold tracking-tight text-on-surface">Curated Knowledge Base</h2>
-          <p className="text-secondary text-sm">Philosophical frameworks and rhetorical techniques curated by the MindArena Syndicate.</p>
-        </div>
-        <div className="flex gap-3">
-          <div className="relative group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary group-focus-within:text-primary transition-colors" />
-            <input 
-              className="bg-surface-container border border-outline-variant h-12 pl-10 pr-4 rounded-xl text-sm focus:ring-1 focus:ring-primary focus:border-primary transition-all outline-none w-64 text-on-surface placeholder:text-secondary/50" 
-              placeholder="Search modules..." 
-            />
-          </div>
-          <button className="h-12 w-12 flex items-center justify-center border border-outline-variant rounded-xl text-secondary hover:bg-surface-container-high transition-all">
-            <Filter className="w-5 h-5" />
-          </button>
-        </div>
+      <header>
+        <h2 className="text-4xl font-bold tracking-tight text-on-surface">Knowledge Base</h2>
+        <p className="mt-2 text-secondary">上传规则、知识文档和资料文件，系统会解析、切块并写入本地向量数据库。</p>
       </header>
 
-      {/* Featured Header Card */}
-      <div className="relative h-64 rounded-2xl overflow-hidden border border-outline-variant group">
-        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/20 to-transparent z-10" />
-        <img 
-          src="https://images.unsplash.com/photo-1507842217343-583bb7270b66?q=80&w=2180&auto=format&fit=crop" 
-          className="absolute inset-0 w-full h-full object-cover opacity-20 filter grayscale" 
-          alt="Library"
-        />
-        <div className="relative z-20 h-full p-10 flex flex-col justify-center max-w-2xl">
-          <span className="text-[10px] font-black tracking-[0.2em] uppercase text-primary mb-3">Syndicate Exclusive</span>
-          <h3 className="text-3xl font-bold text-on-surface mb-4 tracking-tight leading-tight">Aristotelian Rhetoric:<br />The Art of Ethos, Pathos, and Logos</h3>
-          <p className="text-secondary text-sm mb-6 max-w-md">Learn the foundational pillars of Western argumentation in this masterclass. 450 scholars currently enrolled.</p>
-          <button className="w-fit px-6 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:brightness-110 transition-all flex items-center gap-2 active:scale-95 shadow-lg shadow-primary/20">
-            Commence Study <ArrowRight className="w-3 h-3" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard label="文档数" value={String(stats.documentTotal)} />
+        <StatCard label="向量分块" value={String(stats.chunkTotal)} />
+        <StatCard label="总词数" value={String(stats.wordTotal)} />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <section className="rounded-3xl border border-outline-variant bg-surface-container p-6">
+          <div className="flex items-center gap-3">
+            <Scale className="w-5 h-5 text-primary" />
+            <h3 className="text-xl font-bold text-on-surface">录入规则</h3>
+          </div>
+          <form
+            className="mt-6 space-y-4"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              await onCreateRule({
+                title: ruleTitle,
+                category: ruleCategory,
+                content: ruleContent,
+              });
+              setRuleTitle('');
+              setRuleCategory('Rules');
+              setRuleContent('');
+            }}
+          >
+            <input
+              value={ruleTitle}
+              onChange={(event) => setRuleTitle(event.target.value)}
+              placeholder="规则标题"
+              className="w-full rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-3 text-on-surface outline-none focus:border-primary"
+            />
+            <input
+              value={ruleCategory}
+              onChange={(event) => setRuleCategory(event.target.value)}
+              placeholder="分类，例如 Debate Rules"
+              className="w-full rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-3 text-on-surface outline-none focus:border-primary"
+            />
+            <textarea
+              value={ruleContent}
+              onChange={(event) => setRuleContent(event.target.value)}
+              placeholder="输入规则、约束、知识说明、标准流程等内容..."
+              className="min-h-48 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-3 text-on-surface outline-none focus:border-primary"
+            />
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="rounded-2xl bg-primary px-5 py-3 text-sm font-black text-on-primary disabled:opacity-60"
+            >
+              保存并向量化规则
+            </button>
+          </form>
+        </section>
+
+        <section className="rounded-3xl border border-outline-variant bg-surface-container p-6">
+          <div className="flex items-center gap-3">
+            <FileUp className="w-5 h-5 text-primary" />
+            <h3 className="text-xl font-bold text-on-surface">上传知识文件</h3>
+          </div>
+          <form
+            className="mt-6 space-y-4"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              if (!selectedFile) return;
+              await onUploadFile({
+                file: selectedFile,
+                title: fileTitle || undefined,
+                category: fileCategory || undefined,
+              });
+              setSelectedFile(null);
+              setFileTitle('');
+              setFileCategory('Uploaded File');
+              const input = document.getElementById('knowledge-file-input') as HTMLInputElement | null;
+              if (input) input.value = '';
+            }}
+          >
+            <input
+              value={fileTitle}
+              onChange={(event) => setFileTitle(event.target.value)}
+              placeholder="可选标题，不填则使用文件名"
+              className="w-full rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-3 text-on-surface outline-none focus:border-primary"
+            />
+            <input
+              value={fileCategory}
+              onChange={(event) => setFileCategory(event.target.value)}
+              placeholder="分类，例如 Case Law / Policy / Rules"
+              className="w-full rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-3 text-on-surface outline-none focus:border-primary"
+            />
+            <input
+              id="knowledge-file-input"
+              type="file"
+              accept=".txt,.md,.markdown,.rules,.rule,.csv,.tsv,.yaml,.yml,.json,.xml,.html,.htm,.log,.pdf,.docx"
+              onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+              className="block w-full rounded-2xl border border-dashed border-outline-variant bg-surface-container-low px-4 py-5 text-sm text-secondary"
+            />
+            <p className="text-sm text-secondary">
+              支持 `txt/md/json/yaml/csv/html/log/rules/pdf/docx`，单文件不超过 8MB，上传后会自动解析并切块入库。
+            </p>
+            <button
+              type="submit"
+              disabled={isSubmitting || !selectedFile}
+              className="rounded-2xl bg-primary px-5 py-3 text-sm font-black text-on-primary disabled:opacity-60"
+            >
+              上传并建立向量索引
+            </button>
+          </form>
+        </section>
+      </div>
+
+      <section className="rounded-3xl border border-outline-variant bg-surface-container p-6">
+        <div className="flex items-center gap-3">
+          <FileSearch className="w-5 h-5 text-primary" />
+          <h3 className="text-xl font-bold text-on-surface">语义检索</h3>
+        </div>
+        <form
+          className="mt-6 flex flex-col md:flex-row gap-3"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            await onSearch(query);
+          }}
+        >
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="例如：cross examination 的评分规则是什么？"
+              className="w-full rounded-2xl border border-outline-variant bg-surface-container-low py-3 pl-11 pr-4 text-on-surface outline-none focus:border-primary"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="rounded-2xl bg-primary px-5 py-3 text-sm font-black text-on-primary disabled:opacity-60"
+          >
+            检索知识库
           </button>
-        </div>
-      </div>
+        </form>
 
-      {/* Grid of Modules */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {modules.map((m, i) => (
-          <ModuleCard key={i} {...m} />
-        ))}
-      </div>
+        {searchResult ? (
+          <div className="mt-6 space-y-4">
+            <p className="text-sm text-secondary">
+              查询 “{searchResult.query}” 命中 {searchResult.total} 条结果
+            </p>
+            {searchResult.results.map((result) => (
+              <article key={result.id} className="rounded-2xl border border-outline-variant bg-surface-container-low p-5">
+                <div className="flex flex-wrap items-center gap-3 text-xs">
+                  <span className="font-black text-primary">{result.documentTitle}</span>
+                  <span className="text-secondary">{result.category}</span>
+                  <span className="rounded-full border border-outline-variant px-2 py-1 text-secondary">
+                    {result.sourceType === 'rule' ? '规则' : '文件'}
+                  </span>
+                  <span className="text-secondary">score {result.score}</span>
+                </div>
+                <p className="mt-3 text-sm leading-6 text-on-surface">{result.excerpt}</p>
+              </article>
+            ))}
+          </div>
+        ) : null}
+      </section>
 
-      <div className="mt-12 text-center p-12 border-2 border-dashed border-outline-variant rounded-3xl group cursor-pointer hover:border-primary/40 transition-all">
-        <div className="w-16 h-16 bg-surface-container-high rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
-          <BookOpen className="w-8 h-8 text-secondary group-hover:text-primary transition-colors" />
+      <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_0.9fr] gap-6 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {documents.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-outline-variant bg-surface-container p-8 text-sm text-secondary">
+              还没有知识文档。先录入规则或上传文件，系统会自动切块并向量化。
+            </div>
+          ) : null}
+          {documents.map((document) => (
+            <article key={document.id} className="rounded-3xl border border-outline-variant bg-surface-container p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-lg font-bold text-on-surface">{document.title}</p>
+                  <p className="mt-1 text-sm text-secondary">{document.category}</p>
+                </div>
+                <span className="rounded-full border border-outline-variant px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-primary">
+                  {document.sourceType === 'rule' ? 'Rule' : 'File'}
+                </span>
+              </div>
+
+              <p className="mt-4 text-sm leading-6 text-secondary">{document.summary}</p>
+
+              <div className="mt-6 space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-secondary">状态</span>
+                  <span className="font-bold text-on-surface">{document.status}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-secondary">Chunk 数</span>
+                  <span className="font-bold text-on-surface">{document.chunkCount}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-secondary">词数</span>
+                  <span className="font-bold text-on-surface">{document.wordCount}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-secondary">创建时间</span>
+                  <span className="font-bold text-on-surface">
+                    {new Date(document.createdAt).toLocaleString()}
+                  </span>
+                </div>
+                {document.fileName ? (
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-secondary">文件</span>
+                    <span className="font-bold text-on-surface truncate">{document.fileName}</span>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => void onOpenDocument(document.id)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-outline-variant px-4 py-2 text-sm font-bold text-on-surface"
+                >
+                  <Eye className="w-4 h-4" />
+                  查看分块
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void onReindexDocument(document.id)}
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-2 rounded-xl border border-outline-variant px-4 py-2 text-sm font-bold text-on-surface disabled:opacity-60"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  重建索引
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm(`Delete "${document.title}" and all indexed chunks?`)) {
+                      void onDeleteDocument(document.id);
+                    }
+                  }}
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-2 rounded-xl border border-error/30 px-4 py-2 text-sm font-bold text-red-200 disabled:opacity-60"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  删除
+                </button>
+              </div>
+            </article>
+          ))}
         </div>
-        <h4 className="text-xl font-bold text-on-surface mb-2">Missing something?</h4>
-        <p className="text-secondary text-sm max-w-sm mx-auto mb-8 tracking-tight">Request a specific philosophical framework or debate technique for our curators to analyze and integrate.</p>
-        <button className="px-8 py-3 border border-outline text-on-surface font-bold text-xs rounded-xl hover:bg-surface-container-highest transition-all active:scale-95">
-          Submit Request
-        </button>
+
+        <aside className="rounded-3xl border border-outline-variant bg-surface-container p-6 sticky top-24">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-xl font-bold text-on-surface">Chunk 详情</h3>
+              <p className="mt-1 text-sm text-secondary">用于检查切块和索引内容是否合理。</p>
+            </div>
+            {detail ? (
+              <button type="button" onClick={onCloseDetail} className="text-sm text-primary font-bold">
+                关闭
+              </button>
+            ) : null}
+          </div>
+
+          {!detail ? (
+            <div className="mt-6 rounded-2xl border border-dashed border-outline-variant bg-surface-container-low px-4 py-6 text-sm text-secondary">
+              从左侧选择一个文档，即可查看它的 chunk 明细、重建索引或删除。
+            </div>
+          ) : (
+            <div className="mt-6 space-y-4">
+              <div className="rounded-2xl bg-surface-container-low p-4">
+                <p className="text-lg font-bold text-on-surface">{detail.document.title}</p>
+                <p className="mt-1 text-sm text-secondary">
+                  {detail.document.category} • {detail.document.chunkCount} chunks
+                </p>
+              </div>
+              <div className="max-h-[32rem] space-y-3 overflow-y-auto pr-1">
+                {detail.chunks.map((chunk) => (
+                  <article key={chunk.id} className="rounded-2xl border border-outline-variant bg-surface-container-low p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
+                      Chunk {chunk.index + 1}
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-on-surface">{chunk.text}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
+        </aside>
       </div>
     </div>
   );
 }
 
-function ModuleCard({ title, category, difficulty, status, progress, icon }: any) {
-  const isLocked = status === 'Locked';
-
+function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className={cn(
-      "bg-surface-container border border-outline-variant rounded-2xl p-6 flex flex-col gap-5 group transition-all hover:bg-surface-container-high",
-      isLocked ? "opacity-60" : "hover:border-primary/40 shadow-xl"
-    )}>
-      <div className="flex justify-between items-start">
-        <div className="w-12 h-12 rounded-xl bg-background border border-outline-variant flex items-center justify-center group-hover:border-primary/30 transition-all">
-          {icon}
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <span className={cn(
-            "text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md", 
-            difficulty === 'Elite' ? "bg-primary/10 text-primary border border-primary/20" : "bg-surface-container-highest text-secondary border border-outline-variant"
-          )}>
-            {difficulty}
-          </span>
-          {isLocked && <Lock className="w-4 h-4 text-secondary/30" />}
-          {progress === 100 && <CheckCircle2 className="w-4 h-4 text-tertiary" />}
-        </div>
-      </div>
-
-      <div className="flex-1">
-        <h4 className="font-bold text-on-surface group-hover:text-primary transition-colors mb-1">{title}</h4>
-        <p className="text-[10px] text-secondary font-bold uppercase tracking-widest">{category}</p>
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex justify-between items-end">
-          <span className="text-[9px] font-black text-secondary uppercase tracking-[0.2em]">{isLocked ? 'COURSE LOCKED' : 'MASTERY'}</span>
-          <span className="text-[10px] font-bold text-on-surface">{progress}%</span>
-        </div>
-        <div className="h-1 w-full bg-surface-container-lowest rounded-full overflow-hidden border border-outline-variant">
-          <motion.div 
-            initial={{ width: 0 }}
-            animate={{ width: `${progress}%` }}
-            className={cn("h-full", progress === 100 ? "bg-tertiary" : "bg-primary")} 
-          />
-        </div>
-      </div>
-      
-      {!isLocked && (
-        <button className="flex items-center justify-center gap-2 text-[10px] font-bold text-on-surface hover:text-primary transition-colors uppercase tracking-[0.2em] pt-2 active:scale-95">
-          Proceed to Study <ArrowRight className="w-3 h-3" />
-        </button>
-      )}
+    <div className="rounded-2xl border border-outline-variant bg-surface-container p-5">
+      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary">{label}</p>
+      <p className="mt-3 text-3xl font-black text-on-surface">{value}</p>
     </div>
   );
 }

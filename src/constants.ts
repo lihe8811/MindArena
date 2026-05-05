@@ -1,4 +1,4 @@
-export type View = 'landing' | 'dashboard' | 'start-debate' | 'arena' | 'history' | 'performance' | 'knowledge-base';
+import type { View } from '@/types';
 
 export interface Route {
   id: View;

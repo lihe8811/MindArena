@@ -1,13 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Swords, ArrowRight, Github } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 interface LandingProps {
-  onLogin: () => void;
+  onLogin: (email: string, password: string) => Promise<void>;
+  onRegister: (payload: { name: string; email: string; password: string }) => Promise<void>;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
-export function Landing({ onLogin }: LandingProps) {
+export function Landing({ onLogin, onRegister, isLoading, error }: LandingProps) {
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-background">
       {/* Left Section: Marketing */}
@@ -99,12 +106,36 @@ export function Landing({ onLogin }: LandingProps) {
             <p className="text-secondary text-sm">Enter your credentials to access the engine.</p>
           </div>
 
-          <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); onLogin(); }}>
+          <form
+            className="space-y-5"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (mode === 'login') {
+                await onLogin(email, password);
+                return;
+              }
+              await onRegister({ name, email, password });
+            }}
+          >
+            {mode === 'register' ? (
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-secondary ml-1">Display Name</label>
+                <input
+                  type="text"
+                  placeholder="Your debate name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full h-12 bg-surface-container border border-outline-variant rounded-lg px-4 text-on-surface placeholder:text-secondary/30 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                />
+              </div>
+            ) : null}
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-widest text-secondary ml-1">Academic Email</label>
               <input 
                 type="email" 
                 placeholder="name@university.edu"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full h-12 bg-surface-container border border-outline-variant rounded-lg px-4 text-on-surface placeholder:text-secondary/30 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
               />
             </div>
@@ -116,6 +147,8 @@ export function Landing({ onLogin }: LandingProps) {
               <input 
                 type="password" 
                 placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full h-12 bg-surface-container border border-outline-variant rounded-lg px-4 text-on-surface placeholder:text-secondary/30 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
               />
             </div>
@@ -125,11 +158,18 @@ export function Landing({ onLogin }: LandingProps) {
               <span className="text-sm text-secondary select-none group-hover:text-on-surface transition-colors">Remember session for 30 days</span>
             </label>
 
+            {error ? (
+              <div className="rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-red-200">
+                {error}
+              </div>
+            ) : null}
+
             <button 
               type="submit"
-              className="w-full h-12 bg-primary text-on-primary font-bold rounded-lg hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+              disabled={isLoading}
+              className="w-full h-12 bg-primary text-on-primary font-bold rounded-lg hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Authenticate Access
+              {isLoading ? 'Authenticating...' : mode === 'login' ? 'Sign In' : 'Create Account'}
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
@@ -160,7 +200,14 @@ export function Landing({ onLogin }: LandingProps) {
           </div>
 
           <p className="mt-10 text-center text-sm text-secondary">
-            New to the circle? <button className="text-primary font-bold hover:underline">Register account</button>
+            {mode === 'login' ? 'New to the circle?' : 'Already have an account?'}{' '}
+            <button
+              type="button"
+              onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+              className="text-primary font-bold hover:underline"
+            >
+              {mode === 'login' ? 'Register account' : 'Sign in'}
+            </button>
           </p>
         </div>
 
