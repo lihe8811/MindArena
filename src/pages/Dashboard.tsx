@@ -62,23 +62,29 @@ export function Dashboard({ data, user, onStartDebate, onOpenHistory }: Dashboar
             </button>
           </div>
           <div className="divide-y divide-outline-variant">
-            {data.recentDebates.map((debate) => (
-              <div key={debate.id} className="px-6 py-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                  <p className="text-sm font-bold text-on-surface">{debate.topic}</p>
-                  <p className="mt-1 text-xs text-secondary">
-                    {debate.domain} • Opponent: {debate.opponent}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4 text-xs">
-                  <span className="text-secondary">{debate.duration}</span>
-                  <span className="text-secondary">{debate.tokens}</span>
-                  <span className="rounded-full border border-outline-variant px-3 py-1 font-bold text-on-surface">
-                    {debate.status}
-                  </span>
-                </div>
+            {data.recentDebates.length === 0 ? (
+              <div className="px-6 py-10 text-sm text-secondary">
+                No debates yet. Start your first round after adding a few rules or source files.
               </div>
-            ))}
+            ) : (
+              data.recentDebates.map((debate) => (
+                <div key={debate.id} className="px-6 py-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-bold text-on-surface">{debate.topic}</p>
+                    <p className="mt-1 text-xs text-secondary">
+                      {debate.domain} • Opponent: {debate.opponent}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs">
+                    <span className="text-secondary">{debate.duration}</span>
+                    <span className="text-secondary">{debate.tokens}</span>
+                    <span className="rounded-full border border-outline-variant px-3 py-1 font-bold text-on-surface">
+                      {debate.status}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </section>
 

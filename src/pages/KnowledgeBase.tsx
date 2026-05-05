@@ -1,21 +1,31 @@
 import React, { useMemo, useState } from 'react';
-import { FileSearch, FileUp, Scale, Search } from 'lucide-react';
-import type { KnowledgeDocument, KnowledgeSearchResponse } from '@/types';
+import { Eye, FileSearch, FileUp, RefreshCw, Scale, Search, Trash2 } from 'lucide-react';
+import type { KnowledgeDocument, KnowledgeDocumentDetail, KnowledgeSearchResponse } from '@/types';
 
 interface KnowledgeBaseProps {
   documents: KnowledgeDocument[];
+  detail: KnowledgeDocumentDetail | null;
   onCreateRule: (payload: { title: string; category: string; content: string }) => Promise<void>;
   onUploadFile: (payload: { file: File; title?: string; category?: string }) => Promise<void>;
   onSearch: (query: string) => Promise<void>;
+  onOpenDocument: (documentId: string) => Promise<void>;
+  onDeleteDocument: (documentId: string) => Promise<void>;
+  onReindexDocument: (documentId: string) => Promise<void>;
+  onCloseDetail: () => void;
   searchResult: KnowledgeSearchResponse | null;
   isSubmitting?: boolean;
 }
 
 export function KnowledgeBase({
   documents,
+  detail,
   onCreateRule,
   onUploadFile,
   onSearch,
+  onOpenDocument,
+  onDeleteDocument,
+  onReindexDocument,
+  onCloseDetail,
   searchResult,
   isSubmitting,
 }: KnowledgeBaseProps) {
@@ -136,12 +146,12 @@ export function KnowledgeBase({
             <input
               id="knowledge-file-input"
               type="file"
-              accept=".txt,.md,.markdown,.rules,.rule,.csv,.tsv,.yaml,.yml,.json,.xml,.html,.htm,.log"
+              accept=".txt,.md,.markdown,.rules,.rule,.csv,.tsv,.yaml,.yml,.json,.xml,.html,.htm,.log,.pdf,.docx"
               onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
               className="block w-full rounded-2xl border border-dashed border-outline-variant bg-surface-container-low px-4 py-5 text-sm text-secondary"
             />
             <p className="text-sm text-secondary">
-              支持 `txt/md/json/yaml/csv/html/log/rules` 等文本类文件，上传后会自动解析并切块入库。
+              支持 `txt/md/json/yaml/csv/html/log/rules/pdf/docx`，单文件不超过 8MB，上传后会自动解析并切块入库。
             </p>
             <button
               type="submit"
@@ -206,49 +216,128 @@ export function KnowledgeBase({
         ) : null}
       </section>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {documents.map((document) => (
-          <article key={document.id} className="rounded-3xl border border-outline-variant bg-surface-container p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-lg font-bold text-on-surface">{document.title}</p>
-                <p className="mt-1 text-sm text-secondary">{document.category}</p>
-              </div>
-              <span className="rounded-full border border-outline-variant px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-primary">
-                {document.sourceType === 'rule' ? 'Rule' : 'File'}
-              </span>
+      <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_0.9fr] gap-6 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {documents.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-outline-variant bg-surface-container p-8 text-sm text-secondary">
+              还没有知识文档。先录入规则或上传文件，系统会自动切块并向量化。
             </div>
-
-            <p className="mt-4 text-sm leading-6 text-secondary">{document.summary}</p>
-
-            <div className="mt-6 space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-secondary">状态</span>
-                <span className="font-bold text-on-surface">{document.status}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-secondary">Chunk 数</span>
-                <span className="font-bold text-on-surface">{document.chunkCount}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-secondary">词数</span>
-                <span className="font-bold text-on-surface">{document.wordCount}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-secondary">创建时间</span>
-                <span className="font-bold text-on-surface">
-                  {new Date(document.createdAt).toLocaleString()}
+          ) : null}
+          {documents.map((document) => (
+            <article key={document.id} className="rounded-3xl border border-outline-variant bg-surface-container p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-lg font-bold text-on-surface">{document.title}</p>
+                  <p className="mt-1 text-sm text-secondary">{document.category}</p>
+                </div>
+                <span className="rounded-full border border-outline-variant px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-primary">
+                  {document.sourceType === 'rule' ? 'Rule' : 'File'}
                 </span>
               </div>
-              {document.fileName ? (
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="text-secondary">文件</span>
-                  <span className="font-bold text-on-surface truncate">{document.fileName}</span>
+
+              <p className="mt-4 text-sm leading-6 text-secondary">{document.summary}</p>
+
+              <div className="mt-6 space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-secondary">状态</span>
+                  <span className="font-bold text-on-surface">{document.status}</span>
                 </div>
-              ) : null}
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-secondary">Chunk 数</span>
+                  <span className="font-bold text-on-surface">{document.chunkCount}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-secondary">词数</span>
+                  <span className="font-bold text-on-surface">{document.wordCount}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-secondary">创建时间</span>
+                  <span className="font-bold text-on-surface">
+                    {new Date(document.createdAt).toLocaleString()}
+                  </span>
+                </div>
+                {document.fileName ? (
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-secondary">文件</span>
+                    <span className="font-bold text-on-surface truncate">{document.fileName}</span>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => void onOpenDocument(document.id)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-outline-variant px-4 py-2 text-sm font-bold text-on-surface"
+                >
+                  <Eye className="w-4 h-4" />
+                  查看分块
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void onReindexDocument(document.id)}
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-2 rounded-xl border border-outline-variant px-4 py-2 text-sm font-bold text-on-surface disabled:opacity-60"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  重建索引
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm(`Delete "${document.title}" and all indexed chunks?`)) {
+                      void onDeleteDocument(document.id);
+                    }
+                  }}
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-2 rounded-xl border border-error/30 px-4 py-2 text-sm font-bold text-red-200 disabled:opacity-60"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  删除
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <aside className="rounded-3xl border border-outline-variant bg-surface-container p-6 sticky top-24">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-xl font-bold text-on-surface">Chunk 详情</h3>
+              <p className="mt-1 text-sm text-secondary">用于检查切块和索引内容是否合理。</p>
             </div>
-          </article>
-        ))}
+            {detail ? (
+              <button type="button" onClick={onCloseDetail} className="text-sm text-primary font-bold">
+                关闭
+              </button>
+            ) : null}
+          </div>
+
+          {!detail ? (
+            <div className="mt-6 rounded-2xl border border-dashed border-outline-variant bg-surface-container-low px-4 py-6 text-sm text-secondary">
+              从左侧选择一个文档，即可查看它的 chunk 明细、重建索引或删除。
+            </div>
+          ) : (
+            <div className="mt-6 space-y-4">
+              <div className="rounded-2xl bg-surface-container-low p-4">
+                <p className="text-lg font-bold text-on-surface">{detail.document.title}</p>
+                <p className="mt-1 text-sm text-secondary">
+                  {detail.document.category} • {detail.document.chunkCount} chunks
+                </p>
+              </div>
+              <div className="max-h-[32rem] space-y-3 overflow-y-auto pr-1">
+                {detail.chunks.map((chunk) => (
+                  <article key={chunk.id} className="rounded-2xl border border-outline-variant bg-surface-container-low p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
+                      Chunk {chunk.index + 1}
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-on-surface">{chunk.text}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
+        </aside>
       </div>
     </div>
   );

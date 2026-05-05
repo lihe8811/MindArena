@@ -1,19 +1,46 @@
 import type {
   ActiveDebate,
   AppBootstrap,
+  AuthResponse,
   DebateSetup,
   KnowledgeDocument,
+  KnowledgeDocumentDetail,
   KnowledgeSearchResponse,
 } from '@/types';
 
+const AUTH_TOKEN_KEY = 'mindarena.auth.token';
+
+function getStoredToken() {
+  if (typeof window === 'undefined') return null;
+  return window.localStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+export function setStoredToken(token: string | null) {
+  if (typeof window === 'undefined') return;
+  if (token) {
+    window.localStorage.setItem(AUTH_TOKEN_KEY, token);
+    return;
+  }
+  window.localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
-    headers: init?.body instanceof FormData
-      ? init?.headers
+  const token = getStoredToken();
+  const baseHeaders =
+    init?.body instanceof FormData
+      ? { ...(init?.headers ?? {}) }
       : {
           'Content-Type': 'application/json',
           ...(init?.headers ?? {}),
-        },
+        };
+
+  const response = await fetch(path, {
+    headers: token
+      ? {
+          ...baseHeaders,
+          Authorization: `Bearer ${token}`,
+        }
+      : baseHeaders,
     ...init,
   });
 
@@ -29,17 +56,32 @@ export function getBootstrap() {
   return request<AppBootstrap>('/api/bootstrap');
 }
 
-export function login(email: string) {
-  return request<AppBootstrap['session']>('/api/session/login', {
+export async function register(payload: { name: string; email: string; password: string }) {
+  const response = await request<AuthResponse>('/api/session/register', {
     method: 'POST',
-    body: JSON.stringify({ email }),
+    body: JSON.stringify(payload),
   });
+
+  setStoredToken(response.session.token);
+  return response.session;
 }
 
-export function logout() {
-  return request<{ ok: true }>('/api/session/logout', {
+export async function login(email: string, password: string) {
+  const response = await request<AuthResponse>('/api/session/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+
+  setStoredToken(response.session.token);
+  return response.session;
+}
+
+export async function logout() {
+  const response = await request<{ ok: true }>('/api/session/logout', {
     method: 'POST',
   });
+  setStoredToken(null);
+  return response;
 }
 
 export function createDebate(payload: DebateSetup) {
@@ -58,6 +100,10 @@ export function sendDebateMessage(content: string) {
 
 export function listKnowledgeBase() {
   return request<{ documents: KnowledgeDocument[] }>('/api/knowledge-base');
+}
+
+export function getKnowledgeDocument(documentId: string) {
+  return request<KnowledgeDocumentDetail>(`/api/knowledge-base/${documentId}`);
 }
 
 export function createKnowledgeRule(payload: {
@@ -97,5 +143,17 @@ export function searchKnowledge(query: string, limit = 8) {
   return request<KnowledgeSearchResponse>('/api/knowledge-base/search', {
     method: 'POST',
     body: JSON.stringify({ query, limit }),
+  });
+}
+
+export function reindexKnowledgeDocument(documentId: string) {
+  return request<KnowledgeDocumentDetail>(`/api/knowledge-base/${documentId}/reindex`, {
+    method: 'POST',
+  });
+}
+
+export function deleteKnowledgeDocument(documentId: string) {
+  return request<{ documents: KnowledgeDocument[] }>(`/api/knowledge-base/${documentId}`, {
+    method: 'DELETE',
   });
 }

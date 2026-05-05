@@ -2,213 +2,205 @@ import express from 'express';
 import multer from 'multer';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type {
-  ActiveDebate,
-  AppBootstrap,
-  DashboardData,
-  HistoryItem,
-  PerformanceData,
-  UserProfile,
-} from './src/types';
+import type { Request, Response } from 'express';
+import {
+  appendDebateMessage,
+  buildDashboardForUser,
+  buildPerformanceForUser,
+  createDebateForUser,
+  getActiveDebate,
+  getSessionFromToken,
+  listUserHistory,
+  loginUser,
+  logoutSession,
+  registerUser,
+  requireUserFromToken,
+} from './appStore';
 import {
   createKnowledgeEntry,
   createKnowledgeFromFile,
+  deleteKnowledgeDocument,
+  getKnowledgeDocumentDetail,
   listKnowledgeDocuments,
+  reindexKnowledgeDocument,
   searchKnowledgeBase,
 } from './knowledgeBaseStore';
+import type { AppBootstrap } from './src/types';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = Number(process.env.PORT ?? 3001);
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 8 * 1024 * 1024,
+  },
+});
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 app.use(express.json());
 
-const defaultUser: UserProfile = {
-  id: 'user-1',
-  name: 'Debater',
-  email: 'debater@mindarena.app',
-  title: 'Logic Apprentice',
-  streak: 4,
-};
+app.use('/api', (req, res, next) => {
+  const key = req.ip || 'unknown';
+  const now = Date.now();
+  const current = rateLimitMap.get(key);
 
-const dashboard: DashboardData = {
-  heroTitle: 'Train arguments that hold up under pressure',
-  heroSubtitle:
-    'Track your debate history, launch a new round, and keep your core practice loop in one place.',
-  stats: {
-    logicScore: 92,
-    averageResponseSeconds: 13.4,
-    winRate: 71,
-    debatesCompleted: 24,
-  },
-  recentDebates: [
-    {
-      id: 'debate-101',
-      topic: 'Should cities ban private cars in dense downtown areas?',
-      opponent: 'Policy Simulator',
-      status: 'Victory',
-      duration: '26m',
-      tokens: '1.8k',
-      domain: 'Public Policy',
-    },
-    {
-      id: 'debate-102',
-      topic: 'Is open-source AI safer than closed development?',
-      opponent: 'Systems Analyst',
-      status: 'Draw',
-      duration: '34m',
-      tokens: '2.4k',
-      domain: 'AI Governance',
-    },
-    {
-      id: 'debate-103',
-      topic: 'Should homework be abolished in primary school?',
-      opponent: 'Education Council',
-      status: 'Defeat',
-      duration: '18m',
-      tokens: '1.1k',
-      domain: 'Education',
-    },
-  ],
-  recommendations: [
-    'Focus on counterexamples in policy debates.',
-    'Keep closing statements shorter and more concrete.',
-    'Use at least one quantitative citation in economic topics.',
-  ],
-};
+  if (!current || current.resetAt < now) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + 60_000 });
+    next();
+    return;
+  }
 
-const history: HistoryItem[] = [
-  {
-    id: 'hist-1',
-    topic: 'Ethics of AI Sentience',
-    subject: 'Applied Philosophy',
-    date: '2026-04-28',
-    level: 4,
-    status: 'Victory',
-    score: 94,
-  },
-  {
-    id: 'hist-2',
-    topic: 'Universal Basic Income',
-    subject: 'Economics / Policy',
-    date: '2026-04-24',
-    level: 5,
-    status: 'Defeat',
-    score: 78,
-  },
-  {
-    id: 'hist-3',
-    topic: 'Mars Colonization',
-    subject: 'Science / Environment',
-    date: '2026-04-20',
-    level: 3,
-    status: 'Victory',
-    score: 89,
-  },
-  {
-    id: 'hist-4',
-    topic: 'Standardized Testing',
-    subject: 'Education',
-    date: '2026-04-17',
-    level: 2,
-    status: 'Victory',
-    score: 91,
-  },
-];
+  if (current.count >= 180) {
+    res.status(429).send('Too many requests. Please slow down.');
+    return;
+  }
 
-const performance: PerformanceData = {
-  highlights: [
-    { label: 'Win Rate', value: '71%', trend: '+4.0%' },
-    { label: 'Elo Rating', value: '1,842', trend: '+45' },
-    { label: 'Global Rank', value: '#254', trend: '-12', isDown: true },
-    { label: 'Avg Response', value: '13.4s', trend: '-0.8s' },
-  ],
-  skillBalance: [
-    { label: 'Logical Consistency', value: 92 },
-    { label: 'Rhetorical Flair', value: 74 },
-    { label: 'Evidence Integration', value: 88 },
-    { label: 'Response Countering', value: 61 },
-    { label: 'Emotional Intelligence', value: 82 },
-  ],
-  insight:
-    'Your strongest sessions combine structured rebuttals with one or two concise examples instead of long evidence dumps.',
-  recommendation:
-    'Practice faster openings. Your strongest improvements come when your first response states the claim, the reason, and one example within 20 seconds.',
-  milestoneProgress: 74,
-};
+  current.count += 1;
+  rateLimitMap.set(key, current);
+  next();
+});
 
-let session = {
-  authenticated: false,
-  user: null as UserProfile | null,
-};
+function getAuthToken(req: Request) {
+  const header = req.headers.authorization;
+  if (!header) return null;
+  if (header.startsWith('Bearer ')) {
+    return header.slice('Bearer '.length).trim();
+  }
+  return null;
+}
 
-let activeDebate: ActiveDebate | null = null;
+function buildBootstrap(req: Request): AppBootstrap {
+  const session = getSessionFromToken(getAuthToken(req));
 
-function buildBootstrap(): AppBootstrap {
+  if (!session.authenticated || !session.user) {
+    return {
+      session,
+      dashboard: {
+        heroTitle: 'Train arguments that hold up under pressure',
+        heroSubtitle: 'Create an account to persist debates, documents, settings, and future AI-assisted rounds.',
+        stats: {
+          logicScore: 0,
+          averageResponseSeconds: 0,
+          winRate: 0,
+          debatesCompleted: 0,
+        },
+        recentDebates: [],
+        recommendations: [
+          'Create an account to persist your workspace.',
+          'Upload rules and supporting documents before debating.',
+          'Start a debate after your knowledge base is ready.',
+        ],
+      },
+      history: [],
+      performance: {
+        highlights: [
+          { label: 'Win Rate', value: '0%', trend: '+0%' },
+          { label: 'Elo Rating', value: '1200', trend: '+0' },
+          { label: 'Global Rank', value: '#--', trend: '-0', isDown: true },
+          { label: 'Avg Response', value: '--', trend: '-0.0s' },
+        ],
+        skillBalance: [],
+        insight: 'Sign in to start tracking your performance.',
+        recommendation: 'Create an account, upload knowledge, then start your first debate.',
+        milestoneProgress: 0,
+      },
+      knowledgeBase: [],
+      activeDebate: null,
+    };
+  }
+
   return {
     session,
-    dashboard,
-    history,
-    performance,
-    knowledgeBase: listKnowledgeDocuments(),
-    activeDebate,
+    dashboard: buildDashboardForUser(session.user),
+    history: listUserHistory(session.user.id),
+    performance: buildPerformanceForUser(session.user.id),
+    knowledgeBase: listKnowledgeDocuments(session.user.id),
+    activeDebate: getActiveDebate(session.user.id),
   };
 }
 
-function nowLabel() {
-  return new Date().toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+function requireAuth(req: Request, res: Response) {
+  try {
+    return requireUserFromToken(getAuthToken(req));
+  } catch (error) {
+    res.status(401).send(error instanceof Error ? error.message : 'Authentication required.');
+    return null;
+  }
 }
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/bootstrap', (_req, res) => {
-  res.json(buildBootstrap());
+app.get('/api/bootstrap', (req, res) => {
+  res.json(buildBootstrap(req));
+});
+
+app.post('/api/session/register', (req, res) => {
+  const name = String(req.body?.name ?? '').trim();
+  const email = String(req.body?.email ?? '').trim();
+  const password = String(req.body?.password ?? '');
+
+  if (!email || !password || password.length < 8) {
+    res.status(400).send('Name, email, and a password with at least 8 characters are required.');
+    return;
+  }
+
+  try {
+    res.status(201).json(registerUser({ name, email, password }));
+  } catch (error) {
+    res.status(400).send(error instanceof Error ? error.message : 'Unable to register.');
+  }
 });
 
 app.post('/api/session/login', (req, res) => {
   const email = String(req.body?.email ?? '').trim();
+  const password = String(req.body?.password ?? '');
 
-  if (!email) {
-    res.status(400).send('Email is required.');
+  if (!email || !password) {
+    res.status(400).send('Email and password are required.');
     return;
   }
 
-  const nameFromEmail = email.split('@')[0]?.replace(/[._-]/g, ' ') || 'Debater';
-  const normalizedName = nameFromEmail.replace(/\b\w/g, (letter) => letter.toUpperCase());
-
-  session = {
-    authenticated: true,
-    user: {
-      ...defaultUser,
-      name: normalizedName,
-      email,
-    },
-  };
-
-  res.json(session);
+  try {
+    res.json(loginUser({ email, password }));
+  } catch (error) {
+    res.status(401).send(error instanceof Error ? error.message : 'Unable to sign in.');
+  }
 });
 
-app.post('/api/session/logout', (_req, res) => {
-  session = { authenticated: false, user: null };
-  activeDebate = null;
+app.post('/api/session/logout', (req, res) => {
+  logoutSession(getAuthToken(req));
   res.json({ ok: true });
 });
 
-app.get('/api/knowledge-base', (_req, res) => {
+app.get('/api/knowledge-base', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
   res.json({
-    documents: listKnowledgeDocuments(),
+    documents: listKnowledgeDocuments(user.id),
   });
 });
 
+app.get('/api/knowledge-base/:documentId', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  try {
+    res.json(getKnowledgeDocumentDetail(user.id, req.params.documentId));
+  } catch (error) {
+    res.status(404).send(error instanceof Error ? error.message : 'Knowledge document not found.');
+  }
+});
+
 app.post('/api/knowledge-base/rules', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
   const title = String(req.body?.title ?? '').trim();
   const category = String(req.body?.category ?? 'Rules').trim();
   const content = String(req.body?.content ?? '').trim();
@@ -220,6 +212,7 @@ app.post('/api/knowledge-base/rules', (req, res) => {
 
   try {
     const document = createKnowledgeEntry({
+      ownerUserId: user.id,
       title: title || 'New Rule Set',
       category,
       sourceType: 'rule',
@@ -228,21 +221,25 @@ app.post('/api/knowledge-base/rules', (req, res) => {
 
     res.status(201).json({
       document,
-      documents: listKnowledgeDocuments(),
+      documents: listKnowledgeDocuments(user.id),
     });
   } catch (error) {
     res.status(400).send(error instanceof Error ? error.message : 'Failed to store rules.');
   }
 });
 
-app.post('/api/knowledge-base/upload', upload.single('file'), (req, res) => {
+app.post('/api/knowledge-base/upload', upload.single('file'), async (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
   if (!req.file) {
     res.status(400).send('Please upload a file.');
     return;
   }
 
   try {
-    const document = createKnowledgeFromFile({
+    const document = await createKnowledgeFromFile({
+      ownerUserId: user.id,
       fileName: req.file.originalname,
       mimeType: req.file.mimetype || 'application/octet-stream',
       content: req.file.buffer,
@@ -252,7 +249,7 @@ app.post('/api/knowledge-base/upload', upload.single('file'), (req, res) => {
 
     res.status(201).json({
       document,
-      documents: listKnowledgeDocuments(),
+      documents: listKnowledgeDocuments(user.id),
     });
   } catch (error) {
     res.status(400).send(error instanceof Error ? error.message : 'Failed to process file.');
@@ -260,77 +257,88 @@ app.post('/api/knowledge-base/upload', upload.single('file'), (req, res) => {
 });
 
 app.post('/api/knowledge-base/search', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
   const query = String(req.body?.query ?? '').trim();
   const limit = Math.max(1, Math.min(20, Number(req.body?.limit ?? 8)));
+  res.json(searchKnowledgeBase(user.id, query, limit));
+});
 
-  res.json(searchKnowledgeBase(query, limit));
+app.post('/api/knowledge-base/:documentId/reindex', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  try {
+    res.json(reindexKnowledgeDocument(user.id, req.params.documentId));
+  } catch (error) {
+    res.status(404).send(error instanceof Error ? error.message : 'Knowledge document not found.');
+  }
+});
+
+app.delete('/api/knowledge-base/:documentId', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  try {
+    res.json({
+      documents: deleteKnowledgeDocument(user.id, req.params.documentId),
+    });
+  } catch (error) {
+    res.status(404).send(error instanceof Error ? error.message : 'Knowledge document not found.');
+  }
+});
+
+app.get('/api/debates/current', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  res.json({
+    debate: getActiveDebate(user.id),
+  });
 });
 
 app.post('/api/debates', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
   const topic = String(req.body?.topic ?? '').trim();
   const stance = req.body?.stance === 'Opponent' ? 'Opponent' : 'Proponent';
   const rigor = Math.max(1, Math.min(5, Number(req.body?.rigor ?? 3)));
+  const knowledgeDocumentIds = Array.isArray(req.body?.knowledgeDocumentIds)
+    ? req.body.knowledgeDocumentIds.filter((value: unknown): value is string => typeof value === 'string')
+    : [];
 
   if (!topic) {
     res.status(400).send('Topic is required.');
     return;
   }
 
-  activeDebate = {
-    id: `debate-${Date.now()}`,
-    topic,
-    stance,
-    rigor,
-    stage: 'Opening Statements',
-    timerLabel: '08:00',
-    status: 'Ready',
-    messages: [
-      {
-        id: `msg-${Date.now()}`,
-        role: 'system',
-        author: 'Moderator',
-        time: nowLabel(),
-        content: `Debate created. You are arguing as the ${stance.toLowerCase()} side on: "${topic}".`,
-      },
-    ],
-  };
-
-  res.status(201).json(activeDebate);
+  res.status(201).json(
+    createDebateForUser(user.id, {
+      topic,
+      stance,
+      rigor,
+      knowledgeDocumentIds,
+    }),
+  );
 });
 
 app.post('/api/debates/current/messages', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
   const content = String(req.body?.content ?? '').trim();
-
-  if (!activeDebate) {
-    res.status(404).send('No active debate.');
-    return;
-  }
-
   if (!content) {
     res.status(400).send('Message cannot be empty.');
     return;
   }
 
-  activeDebate.messages.push({
-    id: `msg-user-${Date.now()}`,
-    role: 'user',
-    author: session.user?.name ?? 'You',
-    time: nowLabel(),
-    content,
-  });
-
-  activeDebate.messages.push({
-    id: `msg-system-${Date.now() + 1}`,
-    role: 'system',
-    author: 'Moderator',
-    time: nowLabel(),
-    content:
-      'Argument recorded. AI rebuttal is intentionally deferred for now, but the round history is being tracked server-side.',
-  });
-
-  activeDebate.status = 'In Progress';
-
-  res.json(activeDebate);
+  try {
+    res.json(appendDebateMessage(user.id, user.name, content));
+  } catch (error) {
+    res.status(404).send(error instanceof Error ? error.message : 'No active debate.');
+  }
 });
 
 const distPath = path.join(__dirname, 'dist');

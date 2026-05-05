@@ -13,6 +13,17 @@ export interface UserProfile {
   email: string;
   title: string;
   streak: number;
+  createdAt?: string;
+}
+
+export interface AuthSession {
+  authenticated: boolean;
+  user: UserProfile | null;
+  token: string | null;
+}
+
+export interface AuthResponse {
+  session: AuthSession;
 }
 
 export interface DashboardStats {
@@ -44,6 +55,7 @@ export interface DebateSetup {
   topic: string;
   stance: 'Proponent' | 'Opponent';
   rigor: number;
+  knowledgeDocumentIds?: string[];
 }
 
 export interface DebateMessage {
@@ -61,8 +73,12 @@ export interface ActiveDebate {
   rigor: number;
   stage: string;
   timerLabel: string;
-  status: string;
+  status: 'Ready' | 'In Progress' | 'Completed';
   messages: DebateMessage[];
+  createdAt: string;
+  updatedAt: string;
+  score?: number;
+  knowledgeDocumentIds?: string[];
 }
 
 export interface HistoryItem {
@@ -73,6 +89,8 @@ export interface HistoryItem {
   level: number;
   status: 'Victory' | 'Defeat' | 'Draw' | 'In Progress';
   score: number;
+  opponent?: string;
+  createdAt?: string;
 }
 
 export interface PerformanceMetric {
@@ -92,6 +110,7 @@ export interface PerformanceData {
 
 export interface KnowledgeDocument {
   id: string;
+  ownerUserId?: string;
   title: string;
   category: string;
   sourceType: 'rule' | 'file';
@@ -100,8 +119,20 @@ export interface KnowledgeDocument {
   chunkCount: number;
   wordCount: number;
   createdAt: string;
+  updatedAt?: string;
   fileName?: string;
   mimeType?: string;
+}
+
+export interface KnowledgeChunkPreview {
+  id: string;
+  index: number;
+  text: string;
+}
+
+export interface KnowledgeDocumentDetail {
+  document: KnowledgeDocument;
+  chunks: KnowledgeChunkPreview[];
 }
 
 export interface KnowledgeSearchResult {
@@ -121,10 +152,7 @@ export interface KnowledgeSearchResponse {
 }
 
 export interface AppBootstrap {
-  session: {
-    authenticated: boolean;
-    user: UserProfile | null;
-  };
+  session: AuthSession;
   dashboard: DashboardData;
   history: HistoryItem[];
   performance: PerformanceData;

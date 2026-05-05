@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { Sparkles, Swords } from 'lucide-react';
-import type { DebateSetup } from '@/types';
+import type { DebateSetup, KnowledgeDocument } from '@/types';
 
 interface StartDebateProps {
   onCreateDebate: (payload: DebateSetup) => Promise<void>;
   isSubmitting?: boolean;
+  knowledgeDocuments: KnowledgeDocument[];
 }
 
 const prompts = [
@@ -13,10 +14,11 @@ const prompts = [
   'Governments should regulate addictive recommendation algorithms.',
 ];
 
-export function StartDebate({ onCreateDebate, isSubmitting }: StartDebateProps) {
+export function StartDebate({ onCreateDebate, isSubmitting, knowledgeDocuments }: StartDebateProps) {
   const [topic, setTopic] = useState(prompts[0]);
   const [stance, setStance] = useState<DebateSetup['stance']>('Proponent');
   const [rigor, setRigor] = useState(3);
+  const [selectedKnowledgeIds, setSelectedKnowledgeIds] = useState<string[]>([]);
 
   const rigorLabel = useMemo(() => ['Warmup', 'Casual', 'Focused', 'Competitive', 'Tournament'][rigor - 1], [rigor]);
 
@@ -32,7 +34,7 @@ export function StartDebate({ onCreateDebate, isSubmitting }: StartDebateProps) 
           className="rounded-3xl border border-outline-variant bg-surface-container p-8 space-y-8"
           onSubmit={async (event) => {
             event.preventDefault();
-            await onCreateDebate({ topic, stance, rigor });
+            await onCreateDebate({ topic, stance, rigor, knowledgeDocumentIds: selectedKnowledgeIds });
           }}
         >
           <div>
@@ -91,6 +93,44 @@ export function StartDebate({ onCreateDebate, isSubmitting }: StartDebateProps) 
             </div>
           </div>
 
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary mb-3">Knowledge Context</p>
+            {knowledgeDocuments.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-outline-variant bg-surface-container-low px-4 py-5 text-sm text-secondary">
+                No indexed documents yet. Add rules or files in the Knowledge Base to give future AI rounds structured context.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto">
+                {knowledgeDocuments.map((document) => {
+                  const selected = selectedKnowledgeIds.includes(document.id);
+                  return (
+                    <button
+                      key={document.id}
+                      type="button"
+                      onClick={() =>
+                        setSelectedKnowledgeIds((current) =>
+                          current.includes(document.id)
+                            ? current.filter((id) => id !== document.id)
+                            : [...current, document.id],
+                        )
+                      }
+                      className={`rounded-2xl border px-4 py-4 text-left transition-all ${
+                        selected
+                          ? 'border-primary bg-primary/10'
+                          : 'border-outline-variant bg-surface-container-low'
+                      }`}
+                    >
+                      <p className="text-sm font-bold text-on-surface">{document.title}</p>
+                      <p className="mt-1 text-xs text-secondary">
+                        {document.category} • {document.chunkCount} chunks
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <button
             type="submit"
             disabled={isSubmitting}
@@ -107,8 +147,8 @@ export function StartDebate({ onCreateDebate, isSubmitting }: StartDebateProps) 
           </div>
           <div className="mt-6 space-y-3 text-sm text-secondary">
             <div className="rounded-xl bg-surface-container-low px-4 py-3">Creates debate sessions on the server.</div>
-            <div className="rounded-xl bg-surface-container-low px-4 py-3">Stores the active transcript in memory.</div>
-            <div className="rounded-xl bg-surface-container-low px-4 py-3">Lets the user practice without the AI logic wired in yet.</div>
+            <div className="rounded-xl bg-surface-container-low px-4 py-3">Persists transcripts, history, and resume state on disk.</div>
+            <div className="rounded-xl bg-surface-container-low px-4 py-3">Lets you attach indexed knowledge before the AI layer is wired in.</div>
           </div>
         </section>
       </div>

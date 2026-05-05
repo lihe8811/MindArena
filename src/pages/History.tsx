@@ -30,20 +30,26 @@ export function History({ items }: HistoryProps) {
           <span>Date</span>
         </div>
         <div className="divide-y divide-outline-variant">
-          {items.map((item) => (
-            <div key={item.id} className="grid grid-cols-[2fr_120px_140px_120px_140px] gap-4 px-6 py-5 items-center">
-              <div>
-                <p className="font-bold text-on-surface">{item.topic}</p>
-                <p className="text-sm text-secondary">{item.subject}</p>
-              </div>
-              <p className="text-sm text-secondary">LVL {item.level}</p>
-              <span className="w-fit rounded-full border border-outline-variant px-3 py-1 text-xs font-bold text-on-surface">
-                {item.status}
-              </span>
-              <p className="font-bold text-on-surface">{item.score}/100</p>
-              <p className="text-sm text-secondary">{item.date}</p>
+          {items.length === 0 ? (
+            <div className="px-6 py-10 text-sm text-secondary">
+              No debate history yet. Completed debates will appear here automatically.
             </div>
-          ))}
+          ) : (
+            items.map((item) => (
+              <div key={item.id} className="grid grid-cols-[2fr_120px_140px_120px_140px] gap-4 px-6 py-5 items-center">
+                <div>
+                  <p className="font-bold text-on-surface">{item.topic}</p>
+                  <p className="text-sm text-secondary">{item.subject}</p>
+                </div>
+                <p className="text-sm text-secondary">LVL {item.level}</p>
+                <span className="w-fit rounded-full border border-outline-variant px-3 py-1 text-xs font-bold text-on-surface">
+                  {item.status}
+                </span>
+                <p className="font-bold text-on-surface">{item.score}/100</p>
+                <p className="text-sm text-secondary">{item.date}</p>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

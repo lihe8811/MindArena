@@ -49,10 +49,10 @@ export function Arena({ debate, onSendMessage, isSending }: ArenaProps) {
         <div className="rounded-2xl border border-outline-variant bg-surface-container-low p-4">
           <div className="flex items-center gap-2 text-sm font-bold text-on-surface">
             <Timer className="w-4 h-4 text-primary" />
-            AI Pending Mode
+            AI Ready Later
           </div>
           <p className="mt-2 text-sm text-secondary">
-            The app stores your arguments and moderator notes now. AI rebuttal logic can plug into the same thread later.
+            The app now persists your arguments, attached knowledge, and moderator notes. AI rebuttal logic can plug into the same thread later.
           </p>
         </div>
       </section>
@@ -107,7 +107,7 @@ export function Arena({ debate, onSendMessage, isSending }: ArenaProps) {
             />
             <button
               type="submit"
-              disabled={isSending}
+              disabled={isSending || debate.status === 'Completed'}
               className="self-end rounded-2xl bg-primary p-4 text-on-primary disabled:opacity-60"
             >
               <Send className="w-5 h-5" />
