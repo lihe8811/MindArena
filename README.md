@@ -18,7 +18,6 @@ An AI-powered rhetoric and debate training platform. Practice argumentation agai
 - **Build**: Vite 6
 - **Styling**: Tailwind CSS v4
 - **Animations**: Motion (Framer Motion)
-- **AI**: Google Gemini (`@google/genai`)
 - **Icons**: Lucide React
 
 ## Getting Started
@@ -30,11 +29,10 @@ An AI-powered rhetoric and debate training platform. Practice argumentation agai
    bun install
    ```
 
-2. Copy the example env file and add your API key:
+2. Copy the example env file:
    ```
    cp .env.example .env.local
    ```
-   Set `GEMINI_API_KEY` to your [Google Gemini API key](https://aistudio.google.com/app/apikey).
 
 3. Start the dev server:
    ```
@@ -56,5 +54,4 @@ The app runs on [http://localhost:3000](http://localhost:3000).
 
 | Variable | Description |
 |---|---|
-| `GEMINI_API_KEY` | Google Gemini API key (required) |
 | `APP_URL` | Deployment URL for self-referential links and OAuth callbacks |
