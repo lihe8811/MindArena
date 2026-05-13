@@ -1,4 +1,4 @@
-# Person 4: Debate Agents
+# [@Carl](https://github.com/PuLiFy-sus): Debate Agents
 
 ## Owns
 
@@ -17,7 +17,7 @@
 - Make each agent speak only when called by the orchestrator. Do not implement agent-to-agent handoffs.
 - Build prompts from role, side, phase, difficulty, active speaker, allowed actions, and role-aware retrieved context.
 - Keep teammate coaching bounded to allowed prep/coaching windows and prevent hidden opponent strategy leakage.
-- Attach only approved tools from Person 3 and Person 6.
+- Attach only approved tools from [@TT](https://github.com/LOLandXD) and [@Oscar](https://github.com/Oscar-The-Great).
 - Return structured speech or coaching output using shared schemas.
 - Add tests or test doubles proving each agent factory exposes no auto-handoff behavior.
 

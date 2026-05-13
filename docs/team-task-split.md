@@ -11,7 +11,7 @@ This task split converts the original Python/FastAPI architecture plan to the cu
 - Run `bun run lint` before handing work back.
 - Use port `3001` for server tests.
 
-## Person 1: Client Side User Interface
+## [@Lawrence](https://github.com/Lawrence-SHSID): Client Side User Interface
 
 **Owns:**
 - `src/client/App.tsx`
@@ -23,18 +23,18 @@ This task split converts the original Python/FastAPI architecture plan to the cu
 **TODO:**
 - Update the UI around the planned NHSDLC round flow: setup, judge opening, constructive speeches, crossfires, rebuttals, summaries, final focus, judge feedback, complete.
 - Add client state and view behavior for active round phase, active speaker, timer labels, allowed actions, transcript events, evidence-check requests, and judge feedback.
-- Extend `src/client/lib/api.ts` to call the new Express route modules once Person 2/3 and Person 5 expose them.
+- Extend `src/client/lib/api.ts` to call the new Express route modules once [@Emma](https://github.com/shzh0828-dotcom), [@TT](https://github.com/LOLandXD), and [@Hallie](https://github.com/Hallie-Lunalg) expose them.
 - Keep the current authentication, dashboard, history, performance, knowledge base, and debate-start flows working.
 - Add loading, empty, error, and disabled states for actions that are blocked by phase, timer, or auth.
-- Coordinate with Person 2/3 on `AppBootstrap`, `ActiveDebate`, `KnowledgeDocument`, `TranscriptEvent`, and evidence response shapes.
-- Coordinate with Person 5 on the client contract for advancing a round and submitting student input.
+- Coordinate with [@Emma](https://github.com/shzh0828-dotcom) and [@TT](https://github.com/LOLandXD) on `AppBootstrap`, `ActiveDebate`, `KnowledgeDocument`, `TranscriptEvent`, and evidence response shapes.
+- Coordinate with [@Hallie](https://github.com/Hallie-Lunalg) on the client contract for advancing a round and submitting student input.
 
 **Suggested verification:**
 - `bun run lint`
 - `bun run build`
 - Manual dev flow through `bun run dev:all`, client on `3000`, server on `3001`.
 
-## Person 2: Server API, Session Store, And Shared Knowledge
+## [@Emma](https://github.com/shzh0828-dotcom): Server API, Session Store, And Shared Knowledge
 
 **Owns:**
 - `src/server/index.ts`
@@ -48,9 +48,9 @@ This task split converts the original Python/FastAPI architecture plan to the cu
 - Split existing session, bootstrap, health, and knowledge-base endpoints out of `src/server/index.ts` into Express routers.
 - Keep `src/server/index.ts` focused on Express app setup, JSON middleware, upload middleware, route mounting, static assets, and listen.
 - Preserve existing JSON-backed auth/session/debate persistence in `src/server/stores/appStore.ts`.
-- Preserve existing JSON-backed knowledge storage and indexing in `src/server/stores/knowledgeBaseStore.ts` until Person 3 extracts reusable retrieval logic.
+- Preserve existing JSON-backed knowledge storage and indexing in `src/server/stores/knowledgeBaseStore.ts` until [@TT](https://github.com/LOLandXD) extracts reusable retrieval logic.
 - Define stable shared types for sessions, users, dashboard data, history, performance, knowledge documents, and bootstrap payloads.
-- Keep current API behavior backward-compatible for Person 1 while route modules are split.
+- Keep current API behavior backward-compatible for [@Lawrence](https://github.com/Lawrence-SHSID) while route modules are split.
 - Add small route-level tests or smoke scripts if a Bun-compatible test setup is added.
 
 **Suggested verification:**
@@ -58,7 +58,7 @@ This task split converts the original Python/FastAPI architecture plan to the cu
 - `bun run build`
 - `bun run start`, then `curl -s http://localhost:3001/api/health`.
 
-## Person 3: Knowledge Store, Retrieval, And Shared Schemas
+## [@TT](https://github.com/LOLandXD): Knowledge Store, Retrieval, And Shared Schemas
 
 **Owns:**
 - `src/server/stores/knowledgeBaseStore.ts`
@@ -75,15 +75,15 @@ This task split converts the original Python/FastAPI architecture plan to the cu
 - Define role-aware retrieval contracts for rulebook, topic packs, evidence cards, student history, and curriculum notes.
 - Keep the current local vector approach acceptable for MVP; do not introduce Postgres or pgvector yet.
 - Add shared schema/type definitions for `DebateSession`, `DebateState`, `TranscriptEvent`, `EvidenceClaim`, `KnowledgeSearchResult`, and agent output payloads.
-- Provide retrieval functions that Person 4, Person 5, and Person 6 can call without importing Express route code.
+- Provide retrieval functions that [@Carl](https://github.com/PuLiFy-sus), [@Hallie](https://github.com/Hallie-Lunalg), and [@Oscar](https://github.com/Oscar-The-Great) can call without importing Express route code.
 - Add fixtures from `docs/rulebook.md` for retrieval and rules tests.
-- Coordinate with Person 6 so evidence tools can reuse retrieval rather than duplicate document search.
+- Coordinate with [@Oscar](https://github.com/Oscar-The-Great) so evidence tools can reuse retrieval rather than duplicate document search.
 
 **Suggested verification:**
 - `bun run lint`
 - Targeted retrieval tests if a test runner is added.
 
-## Person 4: Debate Agents
+## [@Carl](https://github.com/PuLiFy-sus): Debate Agents
 
 **Owns:**
 - `src/server/agents/rivalAgentA.ts`
@@ -100,7 +100,7 @@ This task split converts the original Python/FastAPI architecture plan to the cu
 - Make each agent speak only when called by the orchestrator. Do not implement agent-to-agent handoffs.
 - Build prompts from role, side, phase, difficulty, active speaker, allowed actions, and role-aware retrieved context.
 - Keep teammate coaching bounded to allowed prep/coaching windows and prevent hidden opponent strategy leakage.
-- Attach only approved tools from Person 3 and Person 6.
+- Attach only approved tools from [@TT](https://github.com/LOLandXD) and [@Oscar](https://github.com/Oscar-The-Great).
 - Return structured speech or coaching output using shared schemas.
 - Add tests or test doubles proving each agent factory exposes no auto-handoff behavior.
 
@@ -108,7 +108,7 @@ This task split converts the original Python/FastAPI architecture plan to the cu
 - `bun run lint`
 - Factory tests with mocked SDK calls once the test setup exists.
 
-## Person 5: Judge Agent And Orchestration
+## [@Hallie](https://github.com/Hallie-Lunalg): Judge Agent And Orchestration
 
 **Owns:**
 - `src/server/agents/judgeAgent.ts`
@@ -127,14 +127,14 @@ This task split converts the original Python/FastAPI architecture plan to the cu
 - Implement Judge Agent output for winner, reason for decision, speaker points, key issues, rule notes, and improvement suggestions.
 - Keep agents from deciding who speaks next.
 - Expose Express routes for creating a debate session, submitting student input, advancing the round, getting current round state, and returning transcript/timer events.
-- Coordinate with Person 6 on timer, rules, evidence interruptions, and transcript service contracts.
+- Coordinate with [@Oscar](https://github.com/Oscar-The-Great) on timer, rules, evidence interruptions, and transcript service contracts.
 
 **Suggested verification:**
 - `bun run lint`
 - Integration tests with mocked agent SDK calls when test setup exists.
 - `curl` route smoke checks against port `3001`.
 
-## Person 6: Tools And Runtime Services
+## [@Oscar](https://github.com/Oscar-The-Great): Tools And Runtime Services
 
 **Owns:**
 - `src/server/services/timerService.ts`
@@ -155,7 +155,7 @@ This task split converts the original Python/FastAPI architecture plan to the cu
 - Implement calculator and evidence tools as callable backend functions for agents and orchestrator.
 - Keep timer as a backend service, not an agent tool.
 - Keep rules marshal deterministic for MVP; only add an internal agent later if deterministic checks are insufficient.
-- Coordinate with Person 3 on retrieval interfaces and with Person 5 on orchestrator interruption behavior.
+- Coordinate with [@TT](https://github.com/LOLandXD) on retrieval interfaces and with [@Hallie](https://github.com/Hallie-Lunalg) on orchestrator interruption behavior.
 
 **Suggested verification:**
 - `bun run lint`
@@ -163,13 +163,13 @@ This task split converts the original Python/FastAPI architecture plan to the cu
 
 ## Integration Order
 
-1. Person 2 splits current Express routes and keeps existing behavior stable.
-2. Person 3 stabilizes shared schemas and retrieval interfaces.
-3. Person 6 builds deterministic runtime services.
-4. Person 5 wires phase/state/orchestration and debate routes with mocked agents.
-5. Person 4 plugs in Rival A and Teammate through the factory.
-6. Person 1 updates the UI against the new route and state contracts.
-7. Everyone runs `bun run lint`; Person 1 or Person 2 runs full app smoke tests.
+1. [@Emma](https://github.com/shzh0828-dotcom) splits current Express routes and keeps existing behavior stable.
+2. [@TT](https://github.com/LOLandXD) stabilizes shared schemas and retrieval interfaces.
+3. [@Oscar](https://github.com/Oscar-The-Great) builds deterministic runtime services.
+4. [@Hallie](https://github.com/Hallie-Lunalg) wires phase/state/orchestration and debate routes with mocked agents.
+5. [@Carl](https://github.com/PuLiFy-sus) plugs in Rival A and Teammate through the factory.
+6. [@Lawrence](https://github.com/Lawrence-SHSID) updates the UI against the new route and state contracts.
+7. Everyone runs `bun run lint`; [@Lawrence](https://github.com/Lawrence-SHSID) or [@Emma](https://github.com/shzh0828-dotcom) runs full app smoke tests.
 
 ## MVP Boundary
 

@@ -14,22 +14,22 @@ This folder splits the implementation work by owner. Each person owns a folder b
 
 ## Files
 
-- [Person 1: Client Side User Interface](./@lawrence-client-ui.md)
-- [Person 2: Server API, Session Store, And Shared Knowledge](./@emma-server-api-session-knowledge.md)
-- [Person 3: Knowledge Store, Retrieval, And Shared Schemas](./@tt-knowledge-retrieval-schemas.md)
-- [Person 4: Debate Agents](./@carl-debate-agents.md)
-- [Person 5: Judge Agent And Orchestration](./@hallie-judge-orchestration.md)
-- [Person 6: Tools And Runtime Services](./@oscar-tools-runtime-services.md)
+- [@Lawrence](https://github.com/Lawrence-SHSID): [Client Side User Interface](./@lawrence-client-ui.md)
+- [@Emma](https://github.com/shzh0828-dotcom): [Server API, Session Store, And Shared Knowledge](./@emma-server-api-session-knowledge.md)
+- [@TT](https://github.com/LOLandXD): [Knowledge Store, Retrieval, And Shared Schemas](./@tt-knowledge-retrieval-schemas.md)
+- [@Carl](https://github.com/PuLiFy-sus): [Debate Agents](./@carl-debate-agents.md)
+- [@Hallie](https://github.com/Hallie-Lunalg): [Judge Agent And Orchestration](./@hallie-judge-orchestration.md)
+- [@Oscar](https://github.com/Oscar-The-Great): [Tools And Runtime Services](./@oscar-tools-runtime-services.md)
 
 ## Integration Order
 
-1. Person 2 splits current Express routes and keeps existing behavior stable.
-2. Person 3 stabilizes shared schemas and retrieval interfaces.
-3. Person 6 builds deterministic runtime services.
-4. Person 5 wires phase/state/orchestration and debate routes with mocked agents.
-5. Person 4 plugs in Rival A and Teammate through the factory.
-6. Person 1 updates the UI against the new route and state contracts.
-7. Everyone runs `bun run lint`; Person 1 or Person 2 runs full app smoke tests.
+1. [@Emma](https://github.com/shzh0828-dotcom) splits current Express routes and keeps existing behavior stable.
+2. [@TT](https://github.com/LOLandXD) stabilizes shared schemas and retrieval interfaces.
+3. [@Oscar](https://github.com/Oscar-The-Great) builds deterministic runtime services.
+4. [@Hallie](https://github.com/Hallie-Lunalg) wires phase/state/orchestration and debate routes with mocked agents.
+5. [@Carl](https://github.com/PuLiFy-sus) plugs in Rival A and Teammate through the factory.
+6. [@Lawrence](https://github.com/Lawrence-SHSID) updates the UI against the new route and state contracts.
+7. Everyone runs `bun run lint`; [@Lawrence](https://github.com/Lawrence-SHSID) or [@Emma](https://github.com/shzh0828-dotcom) runs full app smoke tests.
 
 ## MVP Boundary
 
