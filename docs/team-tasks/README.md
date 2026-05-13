@@ -14,12 +14,12 @@ This folder splits the implementation work by owner. Each person owns a folder b
 
 ## Files
 
-- [Person 1: Client Side User Interface](./person-1-client-ui.md)
-- [Person 2: Server API, Session Store, And Shared Knowledge](./person-2-server-api-session-knowledge.md)
-- [Person 3: Knowledge Store, Retrieval, And Shared Schemas](./person-3-knowledge-retrieval-schemas.md)
-- [Person 4: Debate Agents](./person-4-debate-agents.md)
-- [Person 5: Judge Agent And Orchestration](./person-5-judge-orchestration.md)
-- [Person 6: Tools And Runtime Services](./person-6-tools-runtime-services.md)
+- [Person 1: Client Side User Interface](./@lawrence-client-ui.md)
+- [Person 2: Server API, Session Store, And Shared Knowledge](./@emma-server-api-session-knowledge.md)
+- [Person 3: Knowledge Store, Retrieval, And Shared Schemas](./@tt-knowledge-retrieval-schemas.md)
+- [Person 4: Debate Agents](./@carl-debate-agents.md)
+- [Person 5: Judge Agent And Orchestration](./@hallie-judge-orchestration.md)
+- [Person 6: Tools And Runtime Services](./@oscar-tools-runtime-services.md)
 
 ## Integration Order
 
