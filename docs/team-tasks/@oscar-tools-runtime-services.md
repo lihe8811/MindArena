@@ -1,4 +1,4 @@
-# Person 6: Tools And Runtime Services
+# [@Oscar](https://github.com/Oscar-The-Great): Tools And Runtime Services
 
 ## Owns
 
@@ -21,7 +21,7 @@
 - Implement calculator and evidence tools as callable backend functions for agents and orchestrator.
 - Keep timer as a backend service, not an agent tool.
 - Keep rules marshal deterministic for MVP; only add an internal agent later if deterministic checks are insufficient.
-- Coordinate with Person 3 on retrieval interfaces and with Person 5 on orchestrator interruption behavior.
+- Coordinate with [@TT](https://github.com/LOLandXD) on retrieval interfaces and with [@Hallie](https://github.com/Hallie-Lunalg) on orchestrator interruption behavior.
 
 ## Suggested Verification
 

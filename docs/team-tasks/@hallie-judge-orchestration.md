@@ -1,4 +1,4 @@
-# Person 5: Judge Agent And Orchestration
+# [@Hallie](https://github.com/Hallie-Lunalg): Judge Agent And Orchestration
 
 ## Owns
 
@@ -19,7 +19,7 @@
 - Implement Judge Agent output for winner, reason for decision, speaker points, key issues, rule notes, and improvement suggestions.
 - Keep agents from deciding who speaks next.
 - Expose Express routes for creating a debate session, submitting student input, advancing the round, getting current round state, and returning transcript/timer events.
-- Coordinate with Person 6 on timer, rules, evidence interruptions, and transcript service contracts.
+- Coordinate with [@Oscar](https://github.com/Oscar-The-Great) on timer, rules, evidence interruptions, and transcript service contracts.
 
 ## Suggested Verification
 
