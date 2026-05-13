@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Send, Timer, UserCircle2 } from 'lucide-react';
-import type { ActiveDebate } from '@/types';
+import type { ActiveDebate } from '@/shared/types';
 
 interface ArenaProps {
   debate: ActiveDebate | null;

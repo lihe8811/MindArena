@@ -15,7 +15,7 @@ import {
   logoutSession,
   registerUser,
   requireUserFromToken,
-} from './appStore';
+} from './stores/appStore';
 import {
   createKnowledgeEntry,
   createKnowledgeFromFile,
@@ -24,8 +24,8 @@ import {
   listKnowledgeDocuments,
   reindexKnowledgeDocument,
   searchKnowledgeBase,
-} from './knowledgeBaseStore';
-import type { AppBootstrap } from './src/types';
+} from './stores/knowledgeBaseStore';
+import type { AppBootstrap } from '@/shared/types';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -341,7 +341,7 @@ app.post('/api/debates/current/messages', (req, res) => {
   }
 });
 
-const distPath = path.join(__dirname, 'dist');
+const distPath = path.join(__dirname, '../../dist');
 app.use(express.static(distPath));
 
 app.get('*', (_req, res) => {

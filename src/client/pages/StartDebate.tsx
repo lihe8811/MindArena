@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Sparkles, Swords } from 'lucide-react';
-import type { DebateSetup, KnowledgeDocument } from '@/types';
+import type { DebateSetup, KnowledgeDocument } from '@/shared/types';
 
 interface StartDebateProps {
   onCreateDebate: (payload: DebateSetup) => Promise<void>;

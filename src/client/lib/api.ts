@@ -6,7 +6,7 @@ import type {
   KnowledgeDocument,
   KnowledgeDocumentDetail,
   KnowledgeSearchResponse,
-} from '@/types';
+} from '@/shared/types';
 
 const AUTH_TOKEN_KEY = 'mindarena.auth.token';
 

@@ -1,5 +1,5 @@
 import { Bolt, ChevronRight, Clock3, History, Trophy } from 'lucide-react';
-import type { DashboardData, UserProfile } from '@/types';
+import type { DashboardData, UserProfile } from '@/shared/types';
 
 interface DashboardProps {
   data: DashboardData;
