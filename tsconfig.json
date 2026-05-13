@@ -17,7 +17,8 @@
     "allowJs": true,
     "jsx": "react-jsx",
     "types": [
-      "node"
+      "node",
+      "bun-types"
     ],
     "paths": {
       "@/*": [
