@@ -6,7 +6,7 @@
 
 **Architecture:** The system uses four visible OpenAI Agents SDK agents: Judge, Rival A, Rival B, and Teammate. Debate order, timing, speaker roles, prep windows, evidence checks, and rule enforcement are controlled by a code-level Round Orchestrator, not by agent handoffs. Hidden services provide timing, evidence handling, rules checks, session memory, and RAG.
 
-**Tech Stack:** Python, FastAPI, OpenAI Agents SDK, OpenAI Realtime/voice path where needed, Postgres, pgvector, Redis, Pydantic, pytest.
+**Tech Stack:** TypeScript, Bun, Express, React, OpenAI Agents SDK for TypeScript, OpenAI Realtime/voice path where needed, JSON-backed stores for the MVP, later Postgres/pgvector/Redis, TypeScript interfaces or schema validators, and Bun-compatible tests.
 
 ## Current Design Decisions
 
@@ -97,7 +97,7 @@ flowchart LR
 **SDK features:**
 - `instructions`: NHSDLC judge role, educational tone, rubric, scoring rules.
 - `tools`: transcript lookup, rulebook retrieval, evidence lookup, calculator if needed.
-- `output_type`: Pydantic schema for judge decision and feedback.
+- structured TypeScript output schema for judge decision and feedback.
 - `input_guardrails`: block unsafe or format-breaking user requests.
 - `output_guardrails`: detect unsupported rulings or unfair disclosure.
 
@@ -116,7 +116,7 @@ flowchart LR
 **SDK features:**
 - `instructions`: opponent persona, assigned side, phase-specific rules.
 - `tools`: role-aware retrieval, evidence access, calculator if needed.
-- `output_type`: optional structured speech/crossfire output.
+- structured TypeScript output schema for speech/crossfire output where useful.
 - `guardrails`: prevent illegal new arguments in final focus and unsupported evidence claims.
 
 **No auto-handoffs:** Do not set `handoffs=[...]`.
@@ -202,7 +202,7 @@ flowchart LR
 
 **SDK features:**
 - `@function_tool` for evidence-related operations.
-- Pydantic schemas for requests and results.
+- TypeScript interfaces or runtime validators for requests and results.
 - Tool guardrails for malformed requests or forbidden timing.
 
 **Candidate tools:**
@@ -273,55 +273,69 @@ flowchart LR
 ## Suggested Code Structure
 
 ```text
-backend/
-  src/
-    debate_agent/
-      agents/
-        judge.py
-        rival_a.py
-        rival_b.py
-        teammate.py
-        factory.py
-      orchestration/
-        round_orchestrator.py
-        state_machine.py
-        phases.py
-      services/
-        timer_service.py
-        evidence_clerk.py
-        rules_marshal.py
-        transcript_service.py
-      tools/
-        evidence_tools.py
-        retrieval_tools.py
-        calculator_tools.py
-      guardrails/
-        input_guardrails.py
-        output_guardrails.py
-        tool_guardrails.py
-      memory/
-        session_store.py
-        vector_store.py
-        repositories.py
-      schemas/
-        agent_outputs.py
-        debate_state.py
-        evidence.py
-        scoring.py
-      api/
-        routes_debate.py
-        routes_voice.py
-        routes_admin.py
-      prompts/
-        judge.md
-        rival_a.md
-        rival_b.md
-        teammate.md
-        shared_rules.md
-  tests/
-    unit/
-    integration/
-    fixtures/
+src/
+  client/
+    App.tsx
+    main.tsx
+    index.css
+    components/
+    lib/
+    pages/
+  server/
+    index.ts
+    api/
+      debateRoutes.ts
+      knowledgeBaseRoutes.ts
+      sessionRoutes.ts
+      voiceRoutes.ts
+    agents/
+      judgeAgent.ts
+      rivalAgentA.ts
+      rivalAgentB.ts
+      teammateAgent.ts
+      agentFactory.ts
+    orchestration/
+      roundOrchestrator.ts
+      stateMachine.ts
+      phases.ts
+    services/
+      timerService.ts
+      evidenceClerk.ts
+      rulesMarshal.ts
+      transcriptService.ts
+    tools/
+      evidenceTools.ts
+      retrievalTools.ts
+      calculatorTools.ts
+    guardrails/
+      inputGuardrails.ts
+      outputGuardrails.ts
+      toolGuardrails.ts
+    memory/
+      sessionStore.ts
+      vectorStore.ts
+      repositories.ts
+    stores/
+      appStore.ts
+      knowledgeBaseStore.ts
+    prompts/
+      judge.md
+      rivalA.md
+      rivalB.md
+      teammate.md
+      sharedRules.md
+  shared/
+    constants.ts
+    types.ts
+    schemas/
+      agentOutputs.ts
+      debateState.ts
+      evidence.ts
+      scoring.ts
+tests/
+  unit/
+  integration/
+  fixtures/
 ```
 
 ## Core Data Models
@@ -427,22 +441,22 @@ The orchestrator should calculate the active agent from phase, side assignment, 
 ### Task 1: Project Scaffold
 
 **Files:**
-- Create: `backend/src/debate_agent/__init__.py`
-- Create: `backend/src/debate_agent/schemas/debate_state.py`
-- Create: `backend/src/debate_agent/orchestration/phases.py`
-- Create: `backend/tests/unit/test_phases.py`
+- Use existing: `src/client/`
+- Use existing: `src/server/`
+- Use existing: `src/shared/`
+- Create as needed: `tests/unit/`
 
 **Steps:**
 1. Write tests for phase ordering and terminal state.
 2. Implement enums for phase, side, speaker role, and agent role.
 3. Add helper methods such as `next_phase(current_phase)`.
-4. Run `pytest backend/tests/unit/test_phases.py -v`.
+4. Run the Bun-compatible targeted test command once the test runner is configured.
 
 ### Task 2: Round State Machine
 
 **Files:**
-- Create: `backend/src/debate_agent/orchestration/state_machine.py`
-- Test: `backend/tests/unit/test_state_machine.py`
+- Create: `src/server/orchestration/stateMachine.ts`
+- Test: `tests/unit/stateMachine.test.ts`
 
 **Steps:**
 1. Write tests for pro/con sequencing.
@@ -453,8 +467,8 @@ The orchestrator should calculate the active agent from phase, side assignment, 
 ### Task 3: Timer Service
 
 **Files:**
-- Create: `backend/src/debate_agent/services/timer_service.py`
-- Test: `backend/tests/unit/test_timer_service.py`
+- Create: `src/server/services/timerService.ts`
+- Test: `tests/unit/timerService.test.ts`
 
 **Steps:**
 1. Write tests for starting, pausing, resuming, and expiring timers.
@@ -465,24 +479,24 @@ The orchestrator should calculate the active agent from phase, side assignment, 
 ### Task 4: Agent Output Schemas
 
 **Files:**
-- Create: `backend/src/debate_agent/schemas/agent_outputs.py`
-- Create: `backend/src/debate_agent/schemas/scoring.py`
-- Test: `backend/tests/unit/test_agent_output_schemas.py`
+- Create: `src/shared/schemas/agentOutputs.ts`
+- Create: `src/shared/schemas/scoring.ts`
+- Test: `tests/unit/agentOutputSchemas.test.ts`
 
 **Steps:**
-1. Define Pydantic models for speech output, crossfire output, judge feedback, and rule notes.
+1. Define TypeScript schemas or interfaces for speech output, crossfire output, judge feedback, and rule notes.
 2. Validate required fields.
 3. Run schema tests.
 
 ### Task 5: Agent Factories
 
 **Files:**
-- Create: `backend/src/debate_agent/agents/judge.py`
-- Create: `backend/src/debate_agent/agents/rival_a.py`
-- Create: `backend/src/debate_agent/agents/rival_b.py`
-- Create: `backend/src/debate_agent/agents/teammate.py`
-- Create: `backend/src/debate_agent/agents/factory.py`
-- Test: `backend/tests/unit/test_agent_factory.py`
+- Create: `src/server/agents/judgeAgent.ts`
+- Create: `src/server/agents/rivalAgentA.ts`
+- Create: `src/server/agents/rivalAgentB.ts`
+- Create: `src/server/agents/teammateAgent.ts`
+- Create: `src/server/agents/agentFactory.ts`
+- Test: `tests/unit/agentFactory.test.ts`
 
 **Steps:**
 1. Write tests that each factory returns an SDK `Agent`.
@@ -493,10 +507,10 @@ The orchestrator should calculate the active agent from phase, side assignment, 
 ### Task 6: Evidence Clerk And Tools
 
 **Files:**
-- Create: `backend/src/debate_agent/services/evidence_clerk.py`
-- Create: `backend/src/debate_agent/tools/evidence_tools.py`
-- Create: `backend/src/debate_agent/schemas/evidence.py`
-- Test: `backend/tests/unit/test_evidence_clerk.py`
+- Create: `src/server/services/evidenceClerk.ts`
+- Create: `src/server/tools/evidenceTools.ts`
+- Create: `src/shared/schemas/evidence.ts`
+- Test: `tests/unit/evidenceClerk.test.ts`
 
 **Steps:**
 1. Write tests for citation completeness.
@@ -507,9 +521,9 @@ The orchestrator should calculate the active agent from phase, side assignment, 
 ### Task 7: Retrieval Tools
 
 **Files:**
-- Create: `backend/src/debate_agent/memory/vector_store.py`
-- Create: `backend/src/debate_agent/tools/retrieval_tools.py`
-- Test: `backend/tests/unit/test_retrieval_tools.py`
+- Create: `src/server/memory/vectorStore.ts`
+- Create: `src/server/tools/retrievalTools.ts`
+- Test: `tests/unit/retrievalTools.test.ts`
 
 **Steps:**
 1. Write tests with fixture documents from the rulebook.
@@ -519,8 +533,8 @@ The orchestrator should calculate the active agent from phase, side assignment, 
 ### Task 8: Rules Marshal
 
 **Files:**
-- Create: `backend/src/debate_agent/services/rules_marshal.py`
-- Test: `backend/tests/unit/test_rules_marshal.py`
+- Create: `src/server/services/rulesMarshal.ts`
+- Test: `tests/unit/rulesMarshal.test.ts`
 
 **Steps:**
 1. Write tests for wrong side detection.
@@ -531,8 +545,8 @@ The orchestrator should calculate the active agent from phase, side assignment, 
 ### Task 9: Round Orchestrator
 
 **Files:**
-- Create: `backend/src/debate_agent/orchestration/round_orchestrator.py`
-- Test: `backend/tests/integration/test_round_orchestrator.py`
+- Create: `src/server/orchestration/roundOrchestrator.ts`
+- Test: `tests/integration/roundOrchestrator.test.ts`
 
 **Steps:**
 1. Write tests that the orchestrator calls agents in rule-defined order.
@@ -545,9 +559,11 @@ The orchestrator should calculate the active agent from phase, side assignment, 
 ### Task 10: Memory And Persistence
 
 **Files:**
-- Create: `backend/src/debate_agent/memory/session_store.py`
-- Create: `backend/src/debate_agent/memory/repositories.py`
-- Test: `backend/tests/unit/test_session_store.py`
+- Create: `src/server/memory/sessionStore.ts`
+- Create: `src/server/memory/repositories.ts`
+- Use existing: `src/server/stores/appStore.ts`
+- Use existing: `src/server/stores/knowledgeBaseStore.ts`
+- Test: `tests/unit/sessionStore.test.ts`
 
 **Steps:**
 1. Implement SDK session wiring for conversation history.
@@ -558,9 +574,10 @@ The orchestrator should calculate the active agent from phase, side assignment, 
 ### Task 11: API Layer
 
 **Files:**
-- Create: `backend/src/debate_agent/api/routes_debate.py`
-- Create: `backend/src/debate_agent/api/routes_voice.py`
-- Test: `backend/tests/integration/test_debate_routes.py`
+- Create: `src/server/api/debateRoutes.ts`
+- Create: `src/server/api/voiceRoutes.ts`
+- Modify: `src/server/index.ts`
+- Test: `tests/integration/debateRoutes.test.ts`
 
 **Steps:**
 1. Add endpoint to create a debate session.
@@ -572,9 +589,9 @@ The orchestrator should calculate the active agent from phase, side assignment, 
 ### Task 12: Voice Mode
 
 **Files:**
-- Create: `backend/src/debate_agent/api/routes_voice.py`
-- Create: `backend/src/debate_agent/services/transcript_service.py`
-- Test: `backend/tests/integration/test_voice_routes.py`
+- Create: `src/server/api/voiceRoutes.ts`
+- Create: `src/server/services/transcriptService.ts`
+- Test: `tests/integration/voiceRoutes.test.ts`
 
 **Steps:**
 1. Start with push-to-talk STT/TTS if realtime browser voice is not ready.
@@ -585,8 +602,8 @@ The orchestrator should calculate the active agent from phase, side assignment, 
 ### Task 13: Evaluation And Regression Tests
 
 **Files:**
-- Create: `backend/tests/evals/test_debate_quality.py`
-- Create: `backend/tests/fixtures/sample_rounds/`
+- Create: `tests/evals/debateQuality.test.ts`
+- Create: `tests/fixtures/sampleRounds/`
 
 **Steps:**
 1. Create fixture rounds for common scenarios.
