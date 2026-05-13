@@ -13,9 +13,9 @@ import {
   Terminal,
   X,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { ROUTES, type Route } from '@/constants';
-import type { UserProfile, View } from '@/types';
+import { cn } from '@/client/lib/utils';
+import { ROUTES, type Route } from '@/shared/constants';
+import type { UserProfile, View } from '@/shared/types';
 
 interface SidebarProps {
   currentView: View;

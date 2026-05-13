@@ -1,4 +1,4 @@
-import type { View } from '@/types';
+import type { View } from '@/shared/types';
 
 export interface Route {
   id: View;

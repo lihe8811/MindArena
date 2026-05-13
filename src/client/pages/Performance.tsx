@@ -1,4 +1,4 @@
-import type { PerformanceData } from '@/types';
+import type { PerformanceData } from '@/shared/types';
 
 interface PerformanceProps {
   data: PerformanceData;

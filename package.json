@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
-    "dev:server": "bun --watch server.ts",
+    "dev:server": "bun --watch src/server/index.ts",
     "dev:all": "bun run dev:server & bun run dev",
     "build": "vite build",
-    "start": "bun run server.ts",
+    "start": "bun run src/server/index.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"

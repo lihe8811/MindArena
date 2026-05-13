@@ -10,11 +10,11 @@ import type {
   PerformanceData,
   RecentDebate,
   UserProfile,
-} from './src/types';
+} from '@/shared/types';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dataDir = path.join(__dirname, 'data');
+const dataDir = path.join(__dirname, '../../../data');
 const storePath = path.join(dataDir, 'app-store.json');
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 

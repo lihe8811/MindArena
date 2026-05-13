@@ -21,7 +21,7 @@ import {
   sendDebateMessage,
   uploadKnowledgeFile,
 } from './lib/api';
-import type { AppBootstrap, KnowledgeDocumentDetail, KnowledgeSearchResponse, View } from './types';
+import type { AppBootstrap, KnowledgeDocumentDetail, KnowledgeSearchResponse, View } from '@/shared/types';
 
 const VIEW_META: Record<Exclude<View, 'landing'>, { title: string; subtitle: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Your debate workspace' },

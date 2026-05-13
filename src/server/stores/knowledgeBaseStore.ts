@@ -8,11 +8,11 @@ import type {
   KnowledgeDocument,
   KnowledgeDocumentDetail,
   KnowledgeSearchResult,
-} from './src/types';
+} from '@/shared/types';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dataDir = path.join(__dirname, 'data');
+const dataDir = path.join(__dirname, '../../../data');
 const storePath = path.join(dataDir, 'knowledge-base.json');
 const VECTOR_DIMENSIONS = 128;
 

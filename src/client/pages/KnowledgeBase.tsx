@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Eye, FileSearch, FileUp, RefreshCw, Scale, Search, Trash2 } from 'lucide-react';
-import type { KnowledgeDocument, KnowledgeDocumentDetail, KnowledgeSearchResponse } from '@/types';
+import type { KnowledgeDocument, KnowledgeDocumentDetail, KnowledgeSearchResponse } from '@/shared/types';
 
 interface KnowledgeBaseProps {
   documents: KnowledgeDocument[];
