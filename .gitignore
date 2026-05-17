@@ -7,4 +7,3 @@ coverage/
 .env*
 !.env.example
 .claude/
-data/app-store.json
