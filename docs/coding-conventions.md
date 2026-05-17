@@ -116,6 +116,7 @@ Do not import client code from server code. Do not import server code from clien
 
 ## Git And PRs
 
+- Work from `main` and create PRs directly back to `main`. Avoid stacked or long-lived feature branches unless the team explicitly agrees.
 - Keep commits focused by concern.
 - Do not mix docs, schema changes, UI redesigns, and runtime logic in one commit unless they are inseparable.
 - Do not commit local runtime files such as `.claude/` or generated local JSON store data unless explicitly requested.
