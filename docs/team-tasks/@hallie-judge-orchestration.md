@@ -13,13 +13,13 @@
 
 ## TODO
 
-- Define NHSDLC phase ordering and helper functions such as `nextPhase`, terminal phase detection, active side, active speaker, and allowed actions.
-- Implement the Round Orchestrator as the single source of truth for sequencing.
-- Route setup, student input, round advancement, agent runs, timer checks, evidence interruptions, and judge feedback through the orchestrator.
-- Implement Judge Agent output for winner, reason for decision, speaker points, key issues, rule notes, and improvement suggestions.
-- Keep agents from deciding who speaks next.
-- Expose Express routes for creating a debate session, submitting student input, advancing the round, getting current round state, and returning transcript/timer events.
-- Coordinate with [@Oscar](https://github.com/Oscar-The-Great) on timer, rules, evidence interruptions, and transcript service contracts.
+- [ ] Define NHSDLC phase ordering and helper functions such as `nextPhase`, terminal phase detection, active side, active speaker, and allowed actions.
+- [ ] Implement the Round Orchestrator as the single source of truth for sequencing.
+- [ ] Route setup, student input, round advancement, agent runs, timer checks, evidence interruptions, and judge feedback through the orchestrator.
+- [ ] Implement Judge Agent output for winner, reason for decision, speaker points, key issues, rule notes, and improvement suggestions.
+- [ ] Keep agents from deciding who speaks next.
+- [ ] Expose Express routes for creating a debate session, submitting student input, advancing the round, getting current round state, and returning transcript/timer events.
+- [ ] Coordinate with [@Oscar](https://github.com/Oscar-The-Great) on timer, rules, evidence interruptions, and transcript service contracts.
 
 ## Suggested Verification
 
