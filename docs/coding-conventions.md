@@ -89,8 +89,8 @@ Do not import client code from server code. Do not import server code from clien
 - Use `bun:test`.
 - Tests should cover behavior, not implementation details.
 - For new services or repositories, write tests before implementation.
-- Put unit tests under `tests/unit/`.
-- Put cross-module/API tests under `tests/integration/`.
+- Put tests under the matching project component folder in `tests/`, for example `tests/orchestration/`.
+- Cross-module/API tests should live with the coordinating component.
 - Keep tests deterministic. Avoid live network/API calls in normal test runs.
 - If a test requires external services, isolate it behind an explicit script or environment flag.
 
