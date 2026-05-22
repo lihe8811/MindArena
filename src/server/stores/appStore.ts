@@ -108,7 +108,10 @@ function createSessionPayload(user: StoredUser, token: string): AuthResponse {
 
 function cleanupExpiredSessions(store: AppStoreShape) {
   const now = Date.now();
-  store.sessions = store.sessions.filter((session) => new Date(session.expiresAt).getTime() > now);
+  const activeSessions = store.sessions.filter((session) => new Date(session.expiresAt).getTime() > now);
+  const removedExpiredSessions = activeSessions.length !== store.sessions.length;
+  store.sessions = activeSessions;
+  return removedExpiredSessions;
 }
 
 export function registerUser(input: { name: string; email: string; password: string }) {
@@ -186,10 +189,12 @@ export function getSessionFromToken(token: string | null) {
   }
 
   const store = loadStore();
-  cleanupExpiredSessions(store);
+  const removedExpiredSessions = cleanupExpiredSessions(store);
   const session = store.sessions.find((entry) => entry.token === token);
   const user = session ? store.users.find((entry) => entry.id === session.userId) : null;
-  saveStore(store);
+  if (removedExpiredSessions) {
+    saveStore(store);
+  }
 
   if (!session || !user) {
     return {
