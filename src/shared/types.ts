@@ -68,7 +68,7 @@ export interface RecentDebate {
   id: string;
   topic: string;
   opponent: string;
-  status: 'Victory' | 'Defeat' | 'Draw' | 'In Progress';
+  status: 'Victory' | 'Defeat' | 'Draw' | 'In Progress' | 'Terminated';
   duration: string;
   tokens: string;
   domain: string;
@@ -115,7 +115,7 @@ export interface ActiveDebate {
   rigor: number;
   stage: string;
   timerLabel: string;
-  status: 'Ready' | 'In Progress' | 'Completed';
+  status: 'Ready' | 'In Progress' | 'Completed' | 'Terminated';
   messages: DebateMessage[];
   createdAt: string;
   updatedAt: string;
@@ -130,7 +130,7 @@ export interface HistoryItem {
   subject: string;
   date: string;
   level: number;
-  status: 'Victory' | 'Defeat' | 'Draw' | 'In Progress';
+  status: 'Victory' | 'Defeat' | 'Draw' | 'In Progress' | 'Terminated';
   score: number;
   opponent?: string;
   createdAt?: string;

@@ -1,7 +1,7 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE TYPE debate_side AS ENUM ('Proponent', 'Opponent');
-CREATE TYPE debate_status AS ENUM ('Ready', 'In Progress', 'Completed');
+CREATE TYPE debate_status AS ENUM ('Ready', 'In Progress', 'Completed', 'Terminated');
 CREATE TYPE knowledge_source_type AS ENUM ('rule', 'file');
 CREATE TYPE knowledge_status AS ENUM ('Indexed', 'Processing', 'Failed');
 CREATE TYPE message_role AS ENUM ('system', 'user', 'assistant', 'judge', 'tool');
