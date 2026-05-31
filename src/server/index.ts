@@ -3,18 +3,28 @@ import multer from 'multer';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Request, Response } from 'express';
+import { isValidEmailAddress } from './auth/email';
+import { sendVerificationCodeEmail } from './auth/emailVerification';
 import {
   appendDebateMessage,
   buildDashboardForUser,
   buildPerformanceForUser,
+  confirmLoginCode,
   createDebateForUser,
   getActiveDebate,
   getSessionFromToken,
+  getUserSettings,
   listUserHistory,
   loginUser,
   logoutSession,
+  requestPasswordReset,
   registerUser,
+  resendLoginCode,
+  resetPasswordWithCode,
+  resendVerificationCode,
   requireUserFromToken,
+  updateUserSettings,
+  verifyUserEmail,
 } from './stores/appStore';
 import {
   createKnowledgeEntry,
@@ -109,6 +119,7 @@ function buildBootstrap(req: Request): AppBootstrap {
       },
       knowledgeBase: [],
       activeDebate: null,
+      settings: null,
     };
   }
 
@@ -119,6 +130,7 @@ function buildBootstrap(req: Request): AppBootstrap {
     performance: buildPerformanceForUser(session.user.id),
     knowledgeBase: listKnowledgeDocuments(session.user.id),
     activeDebate: getActiveDebate(session.user.id),
+    settings: getUserSettings(session.user.id),
   };
 }
 
@@ -139,24 +151,57 @@ app.get('/api/bootstrap', (req, res) => {
   res.json(buildBootstrap(req));
 });
 
-app.post('/api/session/register', (req, res) => {
+app.post('/api/session/register', async (req, res) => {
   const name = String(req.body?.name ?? '').trim();
   const email = String(req.body?.email ?? '').trim();
   const password = String(req.body?.password ?? '');
 
-  if (!email || !password || password.length < 8) {
+  if (!name || !email || !password || password.length < 8) {
     res.status(400).send('Name, email, and a password with at least 8 characters are required.');
     return;
   }
 
+  if (!isValidEmailAddress(email)) {
+    res.status(400).send('Please enter a valid email address.');
+    return;
+  }
+
   try {
-    res.status(201).json(registerUser({ name, email, password }));
+    const verification = registerUser({ name, email, password });
+    let deliveryMethod: 'email' | 'dev-log' = 'email';
+    let previewCode: string | undefined;
+    try {
+      const delivery = await sendVerificationCodeEmail({
+        email: verification.email,
+        code: verification.code,
+        expiresAt: verification.expiresAt,
+        purpose: 'verification',
+      });
+      deliveryMethod = delivery.provider === 'resend' ? 'email' : 'dev-log';
+      previewCode = delivery.previewCode;
+    } catch (deliveryError) {
+      res
+        .status(502)
+        .send(
+          deliveryError instanceof Error
+            ? `Account created, but we could not send the verification email. ${deliveryError.message}`
+            : 'Account created, but we could not send the verification email.',
+        );
+      return;
+    }
+    res.status(201).json({
+      email: verification.email,
+      expiresAt: verification.expiresAt,
+      requiresVerification: true,
+      deliveryMethod,
+      previewCode,
+    });
   } catch (error) {
     res.status(400).send(error instanceof Error ? error.message : 'Unable to register.');
   }
 });
 
-app.post('/api/session/login', (req, res) => {
+app.post('/api/session/login', async (req, res) => {
   const email = String(req.body?.email ?? '').trim();
   const password = String(req.body?.password ?? '');
 
@@ -166,15 +211,304 @@ app.post('/api/session/login', (req, res) => {
   }
 
   try {
-    res.json(loginUser({ email, password }));
+    const challenge = loginUser({ email, password });
+    let deliveryMethod: 'email' | 'dev-log' = 'email';
+    let previewCode: string | undefined;
+    try {
+      const delivery = await sendVerificationCodeEmail({
+        email: challenge.email,
+        code: challenge.code,
+        expiresAt: challenge.expiresAt,
+        purpose: 'login',
+      });
+      deliveryMethod = delivery.provider === 'resend' ? 'email' : 'dev-log';
+      previewCode = delivery.previewCode;
+    } catch (deliveryError) {
+      res
+        .status(502)
+        .send(
+          deliveryError instanceof Error
+            ? `Sign-in code created, but we could not send the email. ${deliveryError.message}`
+            : 'Sign-in code created, but we could not send the email.',
+        );
+      return;
+    }
+
+    res.json({
+      email: challenge.email,
+      expiresAt: challenge.expiresAt,
+      requiresVerification: true,
+      deliveryMethod,
+      previewCode,
+    });
   } catch (error) {
     res.status(401).send(error instanceof Error ? error.message : 'Unable to sign in.');
+  }
+});
+
+app.post('/api/session/confirm-login', (req, res) => {
+  const email = String(req.body?.email ?? '').trim();
+  const code = String(req.body?.code ?? '').trim();
+
+  if (!email || !code) {
+    res.status(400).send('Email and sign-in code are required.');
+    return;
+  }
+
+  if (!isValidEmailAddress(email)) {
+    res.status(400).send('Please enter a valid email address.');
+    return;
+  }
+
+  try {
+    res.json(confirmLoginCode({ email, code }));
+  } catch (error) {
+    res.status(401).send(error instanceof Error ? error.message : 'Unable to complete sign in.');
+  }
+});
+
+app.post('/api/session/resend-login-code', async (req, res) => {
+  const email = String(req.body?.email ?? '').trim();
+
+  if (!email) {
+    res.status(400).send('Email is required.');
+    return;
+  }
+
+  if (!isValidEmailAddress(email)) {
+    res.status(400).send('Please enter a valid email address.');
+    return;
+  }
+
+  try {
+    const challenge = resendLoginCode(email);
+    let deliveryMethod: 'email' | 'dev-log' = 'email';
+    let previewCode: string | undefined;
+    try {
+      const delivery = await sendVerificationCodeEmail({
+        email: challenge.email,
+        code: challenge.code,
+        expiresAt: challenge.expiresAt,
+        purpose: 'login',
+      });
+      deliveryMethod = delivery.provider === 'resend' ? 'email' : 'dev-log';
+      previewCode = delivery.previewCode;
+    } catch (deliveryError) {
+      res
+        .status(502)
+        .send(
+          deliveryError instanceof Error
+            ? `A new sign-in code was created, but we could not send the email. ${deliveryError.message}`
+            : 'A new sign-in code was created, but we could not send the email.',
+        );
+      return;
+    }
+
+    res.json({
+      email: challenge.email,
+      expiresAt: challenge.expiresAt,
+      requiresVerification: true,
+      deliveryMethod,
+      previewCode,
+    });
+  } catch (error) {
+    res.status(400).send(error instanceof Error ? error.message : 'Unable to resend sign-in code.');
+  }
+});
+
+app.post('/api/session/verify-email', (req, res) => {
+  const email = String(req.body?.email ?? '').trim();
+  const code = String(req.body?.code ?? '').trim();
+
+  if (!email || !code) {
+    res.status(400).send('Email and verification code are required.');
+    return;
+  }
+
+  if (!isValidEmailAddress(email)) {
+    res.status(400).send('Please enter a valid email address.');
+    return;
+  }
+
+  try {
+    res.json({
+      ok: true,
+      ...verifyUserEmail({ email, code }),
+    });
+  } catch (error) {
+    res.status(400).send(error instanceof Error ? error.message : 'Unable to verify email.');
+  }
+});
+
+app.post('/api/session/resend-verification', async (req, res) => {
+  const email = String(req.body?.email ?? '').trim();
+
+  if (!email) {
+    res.status(400).send('Email is required.');
+    return;
+  }
+
+  if (!isValidEmailAddress(email)) {
+    res.status(400).send('Please enter a valid email address.');
+    return;
+  }
+
+  try {
+    const verification = resendVerificationCode(email);
+    let deliveryMethod: 'email' | 'dev-log' = 'email';
+    let previewCode: string | undefined;
+    try {
+      const delivery = await sendVerificationCodeEmail({
+        email: verification.email,
+        code: verification.code,
+        expiresAt: verification.expiresAt,
+        purpose: 'verification',
+      });
+      deliveryMethod = delivery.provider === 'resend' ? 'email' : 'dev-log';
+      previewCode = delivery.previewCode;
+    } catch (deliveryError) {
+      res
+        .status(502)
+        .send(
+          deliveryError instanceof Error
+            ? `A new code was created, but we could not send the verification email. ${deliveryError.message}`
+            : 'A new code was created, but we could not send the verification email.',
+        );
+      return;
+    }
+    res.json({
+      email: verification.email,
+      expiresAt: verification.expiresAt,
+      requiresVerification: true,
+      deliveryMethod,
+      previewCode,
+    });
+  } catch (error) {
+    res.status(400).send(error instanceof Error ? error.message : 'Unable to resend verification code.');
+  }
+});
+
+app.post('/api/session/request-password-reset', async (req, res) => {
+  const email = String(req.body?.email ?? '').trim();
+
+  if (!email) {
+    res.status(400).send('Email is required.');
+    return;
+  }
+
+  if (!isValidEmailAddress(email)) {
+    res.status(400).send('Please enter a valid email address.');
+    return;
+  }
+
+  try {
+    const reset = requestPasswordReset(email);
+    let deliveryMethod: 'email' | 'dev-log' = 'email';
+    let previewCode: string | undefined;
+    try {
+      const delivery = await sendVerificationCodeEmail({
+        email: reset.email,
+        code: reset.code,
+        expiresAt: reset.expiresAt,
+        purpose: 'password-reset',
+      });
+      deliveryMethod = delivery.provider === 'resend' ? 'email' : 'dev-log';
+      previewCode = delivery.previewCode;
+    } catch (deliveryError) {
+      res
+        .status(502)
+        .send(
+          deliveryError instanceof Error
+            ? `A reset code was created, but we could not send the email. ${deliveryError.message}`
+            : 'A reset code was created, but we could not send the email.',
+        );
+      return;
+    }
+
+    res.json({
+      email: reset.email,
+      expiresAt: reset.expiresAt,
+      requiresVerification: true,
+      deliveryMethod,
+      previewCode,
+    });
+  } catch (error) {
+    res.status(400).send(error instanceof Error ? error.message : 'Unable to request password reset.');
+  }
+});
+
+app.post('/api/session/reset-password', (req, res) => {
+  const email = String(req.body?.email ?? '').trim();
+  const code = String(req.body?.code ?? '').trim();
+  const password = String(req.body?.password ?? '');
+
+  if (!email || !code || !password) {
+    res.status(400).send('Email, reset code, and new password are required.');
+    return;
+  }
+
+  if (!isValidEmailAddress(email)) {
+    res.status(400).send('Please enter a valid email address.');
+    return;
+  }
+
+  if (password.length < 8) {
+    res.status(400).send('New password must be at least 8 characters.');
+    return;
+  }
+
+  try {
+    res.json(resetPasswordWithCode({ email, code, password }));
+  } catch (error) {
+    res.status(400).send(error instanceof Error ? error.message : 'Unable to reset password.');
   }
 });
 
 app.post('/api/session/logout', (req, res) => {
   logoutSession(getAuthToken(req));
   res.json({ ok: true });
+});
+
+app.get('/api/settings', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  res.json({
+    settings: getUserSettings(user.id),
+  });
+});
+
+app.put('/api/settings', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  const displayName = String(req.body?.displayName ?? '').trim();
+  const title = String(req.body?.title ?? '').trim();
+
+  if (!displayName || !title) {
+    res.status(400).send('Display name and title are required.');
+    return;
+  }
+
+  try {
+    res.json(
+      updateUserSettings(user.id, {
+        displayName,
+        title,
+        defaultStance: req.body?.defaultStance === 'Opponent' ? 'Opponent' : 'Proponent',
+        defaultRigor: Number(req.body?.defaultRigor ?? 3),
+        emailNotifications: Boolean(req.body?.emailNotifications),
+        rememberSession: Boolean(req.body?.rememberSession),
+        compactSidebar: Boolean(req.body?.compactSidebar),
+        autoOpenArena: Boolean(req.body?.autoOpenArena),
+        theme: ['system', 'light', 'dark'].includes(String(req.body?.theme))
+          ? String(req.body?.theme) as 'system' | 'light' | 'dark'
+          : 'system',
+      }),
+    );
+  } catch (error) {
+    res.status(400).send(error instanceof Error ? error.message : 'Unable to update settings.');
+  }
 });
 
 app.get('/api/knowledge-base', (req, res) => {

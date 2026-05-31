@@ -146,12 +146,12 @@ export function KnowledgeBase({
             <input
               id="knowledge-file-input"
               type="file"
-              accept=".txt,.md,.markdown,.rules,.rule,.csv,.tsv,.yaml,.yml,.json,.xml,.html,.htm,.log,.pdf,.docx"
+              accept=".txt,.md,.markdown,.rules,.rule,.csv,.tsv,.yaml,.yml,.json,.xml,.html,.htm,.log,.sql,.pdf,.docx"
               onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
               className="block w-full rounded-2xl border border-dashed border-outline-variant bg-surface-container-low px-4 py-5 text-sm text-secondary"
             />
             <p className="text-sm text-secondary">
-              支持 `txt/md/json/yaml/csv/html/log/rules/pdf/docx`，单文件不超过 8MB，上传后会自动解析并切块入库。
+              支持 `txt/md/json/yaml/csv/html/log/sql/rules/pdf/docx`，单文件不超过 8MB，上传后会自动解析并切块入库。
             </p>
             <button
               type="submit"

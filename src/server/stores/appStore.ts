@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { normalizeEmailAddress } from '../auth/email';
 import type {
   ActiveDebate,
   AuthResponse,
@@ -10,6 +11,7 @@ import type {
   PerformanceData,
   RecentDebate,
   UserProfile,
+  UserSettings,
 } from '@/shared/types';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,9 +19,38 @@ const __dirname = path.dirname(__filename);
 const dataDir = path.join(__dirname, '../../../data');
 const storePath = path.join(dataDir, 'app-store.json');
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+const VERIFICATION_CODE_TTL_MS = 1000 * 60 * 10;
+const VERIFICATION_RESEND_COOLDOWN_MS = 1000 * 60;
+
+interface StoredEmailVerification {
+  codeHash: string;
+  expiresAt: string;
+  requestedAt: string;
+  lastSentAt: string;
+}
+
+interface StoredPasswordReset {
+  codeHash: string;
+  expiresAt: string;
+  requestedAt: string;
+  lastSentAt: string;
+}
+
+interface StoredLoginVerification {
+  codeHash: string;
+  expiresAt: string;
+  requestedAt: string;
+  lastSentAt: string;
+}
 
 interface StoredUser extends UserProfile {
+  settings: UserSettings;
   passwordHash: string;
+  emailVerified: boolean;
+  emailVerifiedAt?: string | null;
+  verification?: StoredEmailVerification | null;
+  passwordReset?: StoredPasswordReset | null;
+  loginVerification?: StoredLoginVerification | null;
 }
 
 interface StoredSession {
@@ -59,7 +90,17 @@ function ensureStoreFile() {
 
 function loadStore() {
   ensureStoreFile();
-  return JSON.parse(fs.readFileSync(storePath, 'utf8')) as AppStoreShape;
+  const store = JSON.parse(fs.readFileSync(storePath, 'utf8')) as AppStoreShape;
+  store.users = store.users.map((user) => ({
+    ...user,
+    settings: user.settings ?? defaultUserSettings(user.name),
+    emailVerified: user.emailVerified ?? true,
+    emailVerifiedAt: user.emailVerifiedAt ?? (user.emailVerified === false ? null : user.createdAt ?? nowIso()),
+    verification: user.verification ?? null,
+    passwordReset: user.passwordReset ?? null,
+    loginVerification: user.loginVerification ?? null,
+  }));
+  return store;
 }
 
 function saveStore(store: AppStoreShape) {
@@ -91,9 +132,39 @@ function verifyPassword(password: string, storedHash: string) {
   return crypto.timingSafeEqual(Buffer.from(derived, 'hex'), Buffer.from(originalHash, 'hex'));
 }
 
+function hashVerificationCode(code: string) {
+  return crypto.createHash('sha256').update(code).digest('hex');
+}
+
+function verifyVerificationCode(code: string, storedHash: string) {
+  const candidate = hashVerificationCode(code);
+  return crypto.timingSafeEqual(Buffer.from(candidate, 'hex'), Buffer.from(storedHash, 'hex'));
+}
+
 function sanitizeUser(user: StoredUser): UserProfile {
-  const { passwordHash: _passwordHash, ...publicUser } = user;
+  const {
+    passwordHash: _passwordHash,
+    settings: _settings,
+    verification: _verification,
+    passwordReset: _passwordReset,
+    loginVerification: _loginVerification,
+    ...publicUser
+  } = user;
   return publicUser;
+}
+
+function defaultUserSettings(userName: string): UserSettings {
+  return {
+    displayName: userName,
+    title: 'Logic Apprentice',
+    defaultStance: 'Proponent',
+    defaultRigor: 3,
+    emailNotifications: true,
+    rememberSession: true,
+    compactSidebar: false,
+    autoOpenArena: true,
+    theme: 'system',
+  };
 }
 
 function createSessionPayload(user: StoredUser, token: string): AuthResponse {
@@ -106,21 +177,87 @@ function createSessionPayload(user: StoredUser, token: string): AuthResponse {
   };
 }
 
+function generateVerificationCode() {
+  return String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+}
+
+function issueVerificationCode(user: StoredUser) {
+  const code = generateVerificationCode();
+  const requestedAt = nowIso();
+  const expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MS).toISOString();
+
+  user.verification = {
+    codeHash: hashVerificationCode(code),
+    expiresAt,
+    requestedAt,
+    lastSentAt: requestedAt,
+  };
+
+  return {
+    email: user.email,
+    expiresAt,
+    code,
+  };
+}
+
+function issuePasswordResetCode(user: StoredUser) {
+  const code = generateVerificationCode();
+  const requestedAt = nowIso();
+  const expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MS).toISOString();
+
+  user.passwordReset = {
+    codeHash: hashVerificationCode(code),
+    expiresAt,
+    requestedAt,
+    lastSentAt: requestedAt,
+  };
+
+  return {
+    email: user.email,
+    expiresAt,
+    code,
+  };
+}
+
+function issueLoginVerificationCode(user: StoredUser) {
+  const code = generateVerificationCode();
+  const requestedAt = nowIso();
+  const expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MS).toISOString();
+
+  user.loginVerification = {
+    codeHash: hashVerificationCode(code),
+    expiresAt,
+    requestedAt,
+    lastSentAt: requestedAt,
+  };
+
+  return {
+    email: user.email,
+    expiresAt,
+    code,
+  };
+}
+
 function cleanupExpiredSessions(store: AppStoreShape) {
   const now = Date.now();
-  const activeSessions = store.sessions.filter((session) => new Date(session.expiresAt).getTime() > now);
-  const removedExpiredSessions = activeSessions.length !== store.sessions.length;
-  store.sessions = activeSessions;
-  return removedExpiredSessions;
+  const originalLength = store.sessions.length;
+  store.sessions = store.sessions.filter((session) => new Date(session.expiresAt).getTime() > now);
+  return store.sessions.length !== originalLength;
 }
 
 export function registerUser(input: { name: string; email: string; password: string }) {
   const store = loadStore();
   cleanupExpiredSessions(store);
 
-  const email = input.email.trim().toLowerCase();
-  if (store.users.some((user) => user.email === email)) {
+  const email = normalizeEmailAddress(input.email);
+  const existingUser = store.users.find((user) => user.email === email);
+
+  if (existingUser?.emailVerified) {
     throw new Error('This email is already registered.');
+  }
+
+  if (existingUser) {
+    throw new Error('This email is already registered but not yet verified. Request a new code to continue.');
   }
 
   const user: StoredUser = {
@@ -130,34 +267,119 @@ export function registerUser(input: { name: string; email: string; password: str
     title: 'Logic Apprentice',
     streak: 1,
     createdAt: nowIso(),
+    settings: defaultUserSettings(input.name.trim() || email.split('@')[0] || 'Debater'),
     passwordHash: hashPassword(input.password),
+    emailVerified: false,
+    emailVerifiedAt: null,
+    verification: null,
+    passwordReset: null,
+    loginVerification: null,
   };
-
-  const token = crypto.randomUUID();
-  const createdAt = nowIso();
-  const session: StoredSession = {
-    token,
-    userId: user.id,
-    createdAt,
-    expiresAt: new Date(Date.now() + SESSION_TTL_MS).toISOString(),
-  };
+  const verification = issueVerificationCode(user);
 
   store.users.push(user);
-  store.sessions.push(session);
   saveStore(store);
 
-  return createSessionPayload(user, token);
+  return verification;
 }
 
-export function loginUser(input: { email: string; password: string }) {
+export function requestPasswordReset(emailInput: string) {
+  const store = loadStore();
+  const email = normalizeEmailAddress(emailInput);
+  const user = store.users.find((entry) => entry.email === email);
+
+  if (!user) {
+    throw new Error('No account was found for that email.');
+  }
+
+  const lastSentAt = user.passwordReset?.lastSentAt
+    ? new Date(user.passwordReset.lastSentAt).getTime()
+    : 0;
+
+  if (Date.now() - lastSentAt < VERIFICATION_RESEND_COOLDOWN_MS) {
+    throw new Error('Please wait a minute before requesting another reset code.');
+  }
+
+  const reset = issuePasswordResetCode(user);
+  saveStore(store);
+  return reset;
+}
+
+export function requestLoginCode(input: { email: string; password: string }) {
   const store = loadStore();
   cleanupExpiredSessions(store);
 
-  const email = input.email.trim().toLowerCase();
+  const email = normalizeEmailAddress(input.email);
   const user = store.users.find((entry) => entry.email === email);
 
   if (!user || !verifyPassword(input.password, user.passwordHash)) {
     throw new Error('Invalid email or password.');
+  }
+
+  const lastSentAt = user.loginVerification?.lastSentAt
+    ? new Date(user.loginVerification.lastSentAt).getTime()
+    : 0;
+
+  if (Date.now() - lastSentAt < VERIFICATION_RESEND_COOLDOWN_MS) {
+    throw new Error('Please wait a minute before requesting another sign-in code.');
+  }
+
+  const challenge = issueLoginVerificationCode(user);
+  saveStore(store);
+  return challenge;
+}
+
+export function resendLoginCode(emailInput: string) {
+  const store = loadStore();
+  const email = normalizeEmailAddress(emailInput);
+  const user = store.users.find((entry) => entry.email === email);
+
+  if (!user) {
+    throw new Error('No account was found for that email.');
+  }
+
+  const lastSentAt = user.loginVerification?.lastSentAt
+    ? new Date(user.loginVerification.lastSentAt).getTime()
+    : 0;
+
+  if (Date.now() - lastSentAt < VERIFICATION_RESEND_COOLDOWN_MS) {
+    throw new Error('Please wait a minute before requesting another sign-in code.');
+  }
+
+  const challenge = issueLoginVerificationCode(user);
+  saveStore(store);
+  return challenge;
+}
+
+export function confirmLoginCode(input: { email: string; code: string }) {
+  const store = loadStore();
+  cleanupExpiredSessions(store);
+
+  const email = normalizeEmailAddress(input.email);
+  const code = input.code.trim();
+  const user = store.users.find((entry) => entry.email === email);
+
+  if (!user) {
+    throw new Error('No account was found for that email.');
+  }
+
+  if (!user.loginVerification) {
+    throw new Error('No sign-in code is active for this email.');
+  }
+
+  if (new Date(user.loginVerification.expiresAt).getTime() < Date.now()) {
+    throw new Error('This sign-in code has expired. Request a new one.');
+  }
+
+  if (!verifyVerificationCode(code, user.loginVerification.codeHash)) {
+    throw new Error('Invalid sign-in code.');
+  }
+
+  user.loginVerification = null;
+  user.verification = null;
+  if (!user.emailVerified) {
+    user.emailVerified = true;
+    user.emailVerifiedAt = nowIso();
   }
 
   const token = crypto.randomUUID();
@@ -170,6 +392,112 @@ export function loginUser(input: { email: string; password: string }) {
   saveStore(store);
 
   return createSessionPayload(user, token);
+}
+
+export function resetPasswordWithCode(input: { email: string; code: string; password: string }) {
+  const store = loadStore();
+  const email = normalizeEmailAddress(input.email);
+  const code = input.code.trim();
+  const user = store.users.find((entry) => entry.email === email);
+
+  if (!user) {
+    throw new Error('No account was found for that email.');
+  }
+
+  if (!user.passwordReset) {
+    throw new Error('No password reset is active for this email.');
+  }
+
+  if (new Date(user.passwordReset.expiresAt).getTime() < Date.now()) {
+    throw new Error('This reset code has expired. Request a new one.');
+  }
+
+  if (!verifyVerificationCode(code, user.passwordReset.codeHash)) {
+    throw new Error('Invalid reset code.');
+  }
+
+  user.passwordHash = hashPassword(input.password);
+  user.passwordReset = null;
+  user.verification = null;
+  if (!user.emailVerified) {
+    user.emailVerified = true;
+    user.emailVerifiedAt = nowIso();
+  }
+  store.sessions = store.sessions.filter((session) => session.userId !== user.id);
+  saveStore(store);
+
+  return {
+    ok: true,
+    email: user.email,
+    resetAt: nowIso(),
+  };
+}
+
+export function resendVerificationCode(emailInput: string) {
+  const store = loadStore();
+  const email = normalizeEmailAddress(emailInput);
+  const user = store.users.find((entry) => entry.email === email);
+
+  if (!user) {
+    throw new Error('No account was found for that email.');
+  }
+
+  if (user.emailVerified) {
+    throw new Error('This email is already verified. Please sign in.');
+  }
+
+  const lastSentAt = user.verification?.lastSentAt ? new Date(user.verification.lastSentAt).getTime() : 0;
+  if (Date.now() - lastSentAt < VERIFICATION_RESEND_COOLDOWN_MS) {
+    throw new Error('Please wait a minute before requesting another verification code.');
+  }
+
+  const verification = issueVerificationCode(user);
+  saveStore(store);
+  return verification;
+}
+
+export function verifyUserEmail(input: { email: string; code: string }) {
+  const store = loadStore();
+  const email = normalizeEmailAddress(input.email);
+  const code = input.code.trim();
+  const user = store.users.find((entry) => entry.email === email);
+
+  if (!user) {
+    throw new Error('No account was found for that email.');
+  }
+
+  if (user.emailVerified) {
+    return {
+      email: user.email,
+      verifiedAt: user.emailVerifiedAt ?? nowIso(),
+    };
+  }
+
+  if (!user.verification) {
+    throw new Error('No verification code is active for this email.');
+  }
+
+  if (new Date(user.verification.expiresAt).getTime() < Date.now()) {
+    throw new Error('This verification code has expired. Request a new one.');
+  }
+
+  if (!verifyVerificationCode(code, user.verification.codeHash)) {
+    throw new Error('Invalid verification code.');
+  }
+
+  user.emailVerified = true;
+  user.emailVerifiedAt = nowIso();
+  user.verification = null;
+  saveStore(store);
+
+  return {
+    email: user.email,
+    verifiedAt: user.emailVerifiedAt,
+  };
+}
+
+export function loginUser(input: { email: string; password: string }) {
+  return requestLoginCode(input);
 }
 
 export function logoutSession(token: string | null) {
@@ -217,6 +545,45 @@ export function requireUserFromToken(token: string | null) {
     throw new Error('Authentication required.');
   }
   return session.user;
+}
+
+function getStoredUserById(userId: string) {
+  return loadStore().users.find((user) => user.id === userId) ?? null;
+}
+
+export function getUserSettings(userId: string) {
+  const user = getStoredUserById(userId);
+  if (!user) {
+    throw new Error('User not found.');
+  }
+  return user.settings;
+}
+
+export function updateUserSettings(
+  userId: string,
+  input: Partial<UserSettings> & Pick<UserSettings, 'displayName' | 'title'>,
+) {
+  const store = loadStore();
+  const user = store.users.find((entry) => entry.id === userId);
+
+  if (!user) {
+    throw new Error('User not found.');
+  }
+
+  user.settings = {
+    ...user.settings,
+    ...input,
+    defaultRigor: Math.max(1, Math.min(5, Number(input.defaultRigor ?? user.settings.defaultRigor))),
+  };
+  user.name = user.settings.displayName.trim() || user.name;
+  user.title = user.settings.title.trim() || user.title;
+
+  saveStore(store);
+
+  return {
+    user: sanitizeUser(user),
+    settings: user.settings,
+  };
 }
 
 function inferDebateStatus(messageCount: number): HistoryItem['status'] {
