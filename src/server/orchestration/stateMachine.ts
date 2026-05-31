@@ -30,6 +30,31 @@ export interface AgentCall {
   speakerRole?: SpeakerRole;
 }
 
+export interface AgentCallResult {
+  agentRole: AgentRole;
+  content: string;
+  timestamp: number;
+}
+
+export async function callAgentDummy(agentCall: AgentCall): Promise<AgentCallResult> {
+  const roleLabels: Record<AgentRole, string> = {
+    judge: '裁判 (judge)',
+    rival_a: '对手A (rival_a)',
+    rival_b: '对手B (rival_b)',
+    teammate: '队友 (teammate)',
+  };
+
+  const content = `[DUMMY] 我是 ${roleLabels[agentCall.agentRole]}，正在执行当前阶段任务。`;
+
+  await new Promise((resolve) => setTimeout(resolve, 300));
+
+  return {
+    agentRole: agentCall.agentRole,
+    content,
+    timestamp: Date.now(),
+  };
+}
+
 export class RoundStateMachine {
   private state: DebateState;
 
@@ -57,13 +82,22 @@ export class RoundStateMachine {
     return { ...this.state };
   }
 
-  advancePhase(): DebatePhase | null {
+  async advancePhase(): Promise<DebatePhase | null> {
     const nextPhase = getNextPhase(this.state.phase);
     if (nextPhase) {
       this.state.phase = nextPhase;
       this.state.activeSpeaker = this.determineActiveSpeaker();
       this.state.speechTimeRemaining = PHASE_CONFIGS[nextPhase].timerDurationSeconds || 0;
       this.state.allowedActions = this.getAllowedActions();
+
+      const agentCalls = this.getAgentsForCurrentPhase();
+      if (agentCalls.length > 0) {
+        console.log(`[advancePhase] ${nextPhase}: calling ${agentCalls.length} agent(s)`);
+        const results = await Promise.all(agentCalls.map((call) => callAgentDummy(call)));
+        for (const result of results) {
+          console.log(`[advancePhase] ${result.agentRole} responded: ${result.content}`);
+        }
+      }
     }
     return nextPhase;
   }
