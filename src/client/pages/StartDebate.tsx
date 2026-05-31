@@ -1,11 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Sparkles, Swords } from 'lucide-react';
-import type { DebateSetup, KnowledgeDocument } from '@/shared/types';
+import { CirclePlay, Sparkles, Swords } from 'lucide-react';
+import type { DebateParticipantId, DebateSetup } from '@/shared/types';
 
 interface StartDebateProps {
   onCreateDebate: (payload: DebateSetup) => Promise<void>;
   isSubmitting?: boolean;
-  knowledgeDocuments: KnowledgeDocument[];
 }
 
 const prompts = [
@@ -14,19 +13,26 @@ const prompts = [
   'Governments should regulate addictive recommendation algorithms.',
 ];
 
-export function StartDebate({ onCreateDebate, isSubmitting, knowledgeDocuments }: StartDebateProps) {
+const speakerRoles: Array<{ id: DebateParticipantId; side: DebateSetup['stance']; label: string }> = [
+  { id: 'pro1', side: 'Proponent', label: 'pro1' },
+  { id: 'pro2', side: 'Proponent', label: 'pro2' },
+  { id: 'con1', side: 'Opponent', label: 'con1' },
+  { id: 'con2', side: 'Opponent', label: 'con2' },
+];
+
+export function StartDebate({ onCreateDebate, isSubmitting }: StartDebateProps) {
   const [topic, setTopic] = useState(prompts[0]);
-  const [stance, setStance] = useState<DebateSetup['stance']>('Proponent');
+  const [speakerRole, setSpeakerRole] = useState<DebateParticipantId>('pro1');
   const [rigor, setRigor] = useState(3);
-  const [selectedKnowledgeIds, setSelectedKnowledgeIds] = useState<string[]>([]);
 
   const rigorLabel = useMemo(() => ['Warmup', 'Casual', 'Focused', 'Competitive', 'Tournament'][rigor - 1], [rigor]);
+  const selectedRole = speakerRoles.find((role) => role.id === speakerRole) ?? speakerRoles[0];
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
         <h2 className="text-3xl font-bold tracking-tight text-on-surface">Start A Debate</h2>
-        <p className="mt-2 text-secondary">Pick the topic, your side, and the rigor. The server will create the round and track the transcript.</p>
+        <p className="mt-2 text-secondary">Pick the topic, your 2v2 role, and the rigor. The server will create the round and track the transcript.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_0.9fr] gap-6">
@@ -34,7 +40,12 @@ export function StartDebate({ onCreateDebate, isSubmitting, knowledgeDocuments }
           className="rounded-3xl border border-outline-variant bg-surface-container p-8 space-y-8"
           onSubmit={async (event) => {
             event.preventDefault();
-            await onCreateDebate({ topic, stance, rigor, knowledgeDocumentIds: selectedKnowledgeIds });
+            await onCreateDebate({
+              topic,
+              stance: selectedRole.side,
+              speakerRole,
+              rigor,
+            });
           }}
         >
           <div>
@@ -58,19 +69,22 @@ export function StartDebate({ onCreateDebate, isSubmitting, knowledgeDocuments }
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary mb-3">Your Role</p>
-              <div className="grid grid-cols-2 gap-3">
-                {(['Proponent', 'Opponent'] as const).map((option) => (
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-2 gap-3">
+                {speakerRoles.map((option) => (
                   <button
-                    key={option}
+                    key={option.id}
                     type="button"
-                    onClick={() => setStance(option)}
+                    onClick={() => setSpeakerRole(option.id)}
                     className={`rounded-2xl border px-4 py-5 text-sm font-bold transition-all ${
-                      stance === option
+                      speakerRole === option.id
                         ? 'border-primary bg-primary/10 text-on-surface'
                         : 'border-outline-variant bg-surface-container-low text-secondary'
                     }`}
                   >
-                    {option}
+                    <span className="block">{option.label}</span>
+                    <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.16em] text-secondary">
+                      {option.side === 'Proponent' ? 'Pro' : 'Con'}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -93,50 +107,21 @@ export function StartDebate({ onCreateDebate, isSubmitting, knowledgeDocuments }
             </div>
           </div>
 
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary mb-3">Knowledge Context</p>
-            {knowledgeDocuments.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-outline-variant bg-surface-container-low px-4 py-5 text-sm text-secondary">
-                No indexed documents yet. Add rules or files in the Knowledge Base to give future AI rounds structured context.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto">
-                {knowledgeDocuments.map((document) => {
-                  const selected = selectedKnowledgeIds.includes(document.id);
-                  return (
-                    <button
-                      key={document.id}
-                      type="button"
-                      onClick={() =>
-                        setSelectedKnowledgeIds((current) =>
-                          current.includes(document.id)
-                            ? current.filter((id) => id !== document.id)
-                            : [...current, document.id],
-                        )
-                      }
-                      className={`rounded-2xl border px-4 py-4 text-left transition-all ${
-                        selected
-                          ? 'border-primary bg-primary/10'
-                          : 'border-outline-variant bg-surface-container-low'
-                      }`}
-                    >
-                      <p className="text-sm font-bold text-on-surface">{document.title}</p>
-                      <p className="mt-1 text-xs text-secondary">
-                        {document.category} • {document.chunkCount} chunks
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-2xl bg-primary px-6 py-4 font-black text-on-primary transition-all hover:brightness-110 disabled:opacity-60"
+            aria-label="Start debate"
+            title="Start debate"
+            className="w-full rounded-2xl bg-primary px-6 py-4 font-black text-on-primary transition-all hover:brightness-110 disabled:opacity-60 flex items-center justify-center gap-2"
           >
-            {isSubmitting ? 'Creating Debate...' : 'Create Debate Room'}
+            {isSubmitting ? (
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+            ) : (
+              <>
+                <CirclePlay className="h-5 w-5" />
+                Create Debate Room
+              </>
+            )}
           </button>
         </form>
 
@@ -148,7 +133,7 @@ export function StartDebate({ onCreateDebate, isSubmitting, knowledgeDocuments }
           <div className="mt-6 space-y-3 text-sm text-secondary">
             <div className="rounded-xl bg-surface-container-low px-4 py-3">Creates debate sessions on the server.</div>
             <div className="rounded-xl bg-surface-container-low px-4 py-3">Persists transcripts, history, and resume state on disk.</div>
-            <div className="rounded-xl bg-surface-container-low px-4 py-3">Lets you attach indexed knowledge before the AI layer is wired in.</div>
+            <div className="rounded-xl bg-surface-container-low px-4 py-3">Sets the 2v2 speaker role before the round begins.</div>
           </div>
         </section>
       </div>

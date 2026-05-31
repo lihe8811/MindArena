@@ -8,8 +8,7 @@ export interface Route {
 
 export const ROUTES: Route[] = [
   { id: 'dashboard', label: 'Home', icon: 'Home' },
-  { id: 'start-debate', label: 'Start Debate', icon: 'Swords' },
+  { id: 'start-debate', label: 'Start Debate', icon: 'CirclePlay' },
   { id: 'history', label: 'History', icon: 'History' },
   { id: 'performance', label: 'Performance', icon: 'BarChart2' },
-  { id: 'knowledge-base', label: 'Knowledge Base', icon: 'Library' },
 ];

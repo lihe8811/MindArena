@@ -6,6 +6,8 @@ import type {
   ActiveDebate,
   AuthResponse,
   DashboardData,
+  DebateParticipant,
+  DebateParticipantId,
   HistoryItem,
   PerformanceData,
   RecentDebate,
@@ -33,6 +35,17 @@ interface StoredDebate extends ActiveDebate {
   userId: string;
   opponent: string;
   domain: string;
+}
+
+const debateParticipants: DebateParticipant[] = [
+  { id: 'pro1', label: 'pro1', side: 'Proponent', speakerOrder: 1 },
+  { id: 'pro2', label: 'pro2', side: 'Proponent', speakerOrder: 2 },
+  { id: 'con1', label: 'con1', side: 'Opponent', speakerOrder: 1 },
+  { id: 'con2', label: 'con2', side: 'Opponent', speakerOrder: 2 },
+];
+
+function getParticipant(role: DebateParticipantId) {
+  return debateParticipants.find((participant) => participant.id === role) ?? debateParticipants[0];
 }
 
 interface AppStoreShape {
@@ -276,15 +289,24 @@ export function getActiveDebate(userId: string): ActiveDebate | null {
 
 export function createDebateForUser(
   userId: string,
-  input: { topic: string; stance: 'Proponent' | 'Opponent'; rigor: number; knowledgeDocumentIds?: string[] },
+  input: {
+    topic: string;
+    stance: 'Proponent' | 'Opponent';
+    speakerRole?: DebateParticipantId;
+    rigor: number;
+  },
 ) {
   const store = loadStore();
   const createdAt = nowIso();
+  const speakerRole =
+    input.speakerRole ?? (input.stance === 'Opponent' ? 'con1' : 'pro1');
+  const participant = getParticipant(speakerRole);
   const debate: StoredDebate = {
     id: randomId('debate'),
     userId,
     topic: input.topic,
-    stance: input.stance,
+    stance: participant.side,
+    speakerRole: participant.id,
     rigor: input.rigor,
     stage: 'Opening Statements',
     timerLabel: '08:00',
@@ -292,7 +314,7 @@ export function createDebateForUser(
     createdAt,
     updatedAt: createdAt,
     score: undefined,
-    knowledgeDocumentIds: input.knowledgeDocumentIds ?? [],
+    participants: debateParticipants,
     opponent: 'AI Opponent Pending',
     domain: 'User Defined',
     messages: [
@@ -301,7 +323,7 @@ export function createDebateForUser(
         role: 'system',
         author: 'Moderator',
         time: nowLabel(new Date(createdAt)),
-        content: `Debate created. You are arguing as the ${input.stance.toLowerCase()} side on: "${input.topic}".`,
+        content: `Debate created. You are ${participant.label} on the ${participant.side.toLowerCase()} side for: "${input.topic}".`,
       },
     ],
   };
@@ -365,7 +387,7 @@ export function buildDashboardForUser(user: UserProfile): DashboardData {
   return {
     heroTitle: 'Train arguments that hold up under pressure',
     heroSubtitle:
-      'Track your debate history, launch new rounds, and build a private knowledge base that your future AI agent can use.',
+      'Track your debate history, launch new rounds, and practice structured 2v2 argumentation.',
     stats: {
       logicScore: histories.length ? Math.round(histories.reduce((sum, item) => sum + item.score, 0) / histories.length) : 0,
       averageResponseSeconds,
@@ -374,7 +396,7 @@ export function buildDashboardForUser(user: UserProfile): DashboardData {
     },
     recentDebates: debates.slice(0, 5).map(debateToRecent),
     recommendations: [
-      'Add source documents to the knowledge base before difficult policy debates.',
+      'Choose the exact 2v2 speaker role before starting a round.',
       'Keep opening statements concise so rebuttals have more room later.',
       'Resume unfinished debates from the Arena instead of restarting from scratch.',
     ],
@@ -403,10 +425,10 @@ export function buildPerformanceForUser(userId: string): PerformanceData {
     ],
     insight:
       history.length > 0
-        ? 'Your stored debate history shows the strongest sessions happen after you ground the debate with explicit rules or documents.'
+        ? 'Your stored debate history shows the strongest sessions happen when claims are explicit and easy to answer.'
         : 'No completed debates yet. Finish a few rounds to unlock more reliable performance insights.',
     recommendation:
-      'Use the knowledge base to preload rules and supporting sources, then start a new debate so future AI turns can cite them.',
+      'Start a new 2v2 debate and keep each turn focused on one claim at a time.',
     milestoneProgress: Math.min(100, history.length * 15),
   };
 }

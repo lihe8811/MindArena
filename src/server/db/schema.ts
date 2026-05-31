@@ -5,17 +5,13 @@ import {
   jsonb,
   pgEnum,
   pgTable,
-  primaryKey,
   text,
   timestamp,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
-import { vector } from 'drizzle-orm/pg-core/columns/vector_extension/vector';
 
 export const debateSide = pgEnum('debate_side', ['Proponent', 'Opponent']);
-export const debateStatus = pgEnum('debate_status', ['Ready', 'In Progress', 'Completed']);
-export const knowledgeSourceType = pgEnum('knowledge_source_type', ['rule', 'file']);
-export const knowledgeStatus = pgEnum('knowledge_status', ['Indexed', 'Processing', 'Failed']);
+export const debateStatus = pgEnum('debate_status', ['Ready', 'In Progress', 'Completed', 'Terminated']);
 export const messageRole = pgEnum('message_role', ['system', 'user', 'assistant', 'judge', 'tool']);
 
 export const users = pgTable(
@@ -73,64 +69,6 @@ export const debateSessions = pgTable(
   },
   (table) => ({
     userStatusIdx: index('debate_sessions_user_status_idx').on(table.userId, table.status),
-  }),
-);
-
-export const knowledgeDocuments = pgTable(
-  'knowledge_documents',
-  {
-    id: text('id').primaryKey(),
-    ownerUserId: text('owner_user_id').references(() => users.id, { onDelete: 'cascade' }),
-    title: text('title').notNull(),
-    category: text('category').notNull(),
-    sourceType: knowledgeSourceType('source_type').notNull(),
-    status: knowledgeStatus('status').notNull(),
-    summary: text('summary').notNull(),
-    chunkCount: integer('chunk_count').notNull(),
-    wordCount: integer('word_count').notNull(),
-    fileName: text('file_name'),
-    mimeType: text('mime_type'),
-    rawText: text('raw_text').notNull(),
-    metadata: jsonb('metadata').notNull().default({}),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => ({
-    ownerIdx: index('knowledge_documents_owner_user_id_idx').on(table.ownerUserId),
-  }),
-);
-
-export const knowledgeChunks = pgTable(
-  'knowledge_chunks',
-  {
-    id: text('id').primaryKey(),
-    documentId: text('document_id')
-      .notNull()
-      .references(() => knowledgeDocuments.id, { onDelete: 'cascade' }),
-    chunkIndex: integer('chunk_index').notNull(),
-    text: text('text').notNull(),
-    embedding: vector('embedding', { dimensions: 1536 }).notNull(),
-    metadata: jsonb('metadata').notNull().default({}),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => ({
-    documentIdx: index('knowledge_chunks_document_id_idx').on(table.documentId),
-    documentChunkUnique: uniqueIndex('knowledge_chunks_document_chunk_unique').on(table.documentId, table.chunkIndex),
-  }),
-);
-
-export const debateSessionKnowledgeDocuments = pgTable(
-  'debate_session_knowledge_documents',
-  {
-    debateSessionId: text('debate_session_id')
-      .notNull()
-      .references(() => debateSessions.id, { onDelete: 'cascade' }),
-    knowledgeDocumentId: text('knowledge_document_id')
-      .notNull()
-      .references(() => knowledgeDocuments.id, { onDelete: 'cascade' }),
-  },
-  (table) => ({
-    pk: primaryKey({ columns: [table.debateSessionId, table.knowledgeDocumentId] }),
   }),
 );
 
@@ -219,7 +157,6 @@ export const agentRuns = pgTable(
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),
   debateSessions: many(debateSessions),
-  knowledgeDocuments: many(knowledgeDocuments),
 }));
 
 export const debateSessionsRelations = relations(debateSessions, ({ many, one }) => ({

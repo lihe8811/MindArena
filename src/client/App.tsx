@@ -6,22 +6,15 @@ import { StartDebate } from './pages/StartDebate';
 import { Arena } from './pages/Arena';
 import { History } from './pages/History';
 import { Performance } from './pages/Performance';
-import { KnowledgeBase } from './pages/KnowledgeBase';
 import {
   createDebate,
-  createKnowledgeRule,
-  deleteKnowledgeDocument as deleteKnowledgeDocumentRequest,
   getBootstrap,
-  getKnowledgeDocument,
   login,
   register,
-  reindexKnowledgeDocument as reindexKnowledgeDocumentRequest,
   logout,
-  searchKnowledge,
   sendDebateMessage,
-  uploadKnowledgeFile,
 } from './lib/api';
-import type { AppBootstrap, KnowledgeDocumentDetail, KnowledgeSearchResponse, View } from '@/shared/types';
+import type { AppBootstrap, View } from '@/shared/types';
 
 const VIEW_META: Record<Exclude<View, 'landing'>, { title: string; subtitle: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Your debate workspace' },
@@ -29,7 +22,6 @@ const VIEW_META: Record<Exclude<View, 'landing'>, { title: string; subtitle: str
   arena: { title: 'Arena', subtitle: 'Live transcript and round controls' },
   history: { title: 'History', subtitle: 'Past sessions and results' },
   performance: { title: 'Performance', subtitle: 'Metrics and coaching notes' },
-  'knowledge-base': { title: 'Knowledge Base', subtitle: 'Frameworks and study modules' },
 };
 
 function App() {
@@ -40,8 +32,6 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [knowledgeSearchResult, setKnowledgeSearchResult] = useState<KnowledgeSearchResponse | null>(null);
-  const [knowledgeDetail, setKnowledgeDetail] = useState<KnowledgeDocumentDetail | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const refreshApp = useCallback(async () => {
@@ -112,8 +102,6 @@ function App() {
       const data = await refreshApp();
       setAppData(data);
       setCurrentView('landing');
-      setKnowledgeDetail(null);
-      setKnowledgeSearchResult(null);
       setNotice('Signed out.');
     } finally {
       setBusy(false);
@@ -159,124 +147,6 @@ function App() {
     }
   };
 
-  const handleCreateKnowledgeRule = async (payload: {
-    title: string;
-    category: string;
-    content: string;
-  }) => {
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-
-    try {
-      const response = await createKnowledgeRule(payload);
-      if (appData) {
-        setAppData({ ...appData, knowledgeBase: response.documents });
-      }
-      setCurrentView('knowledge-base');
-      setNotice('Rule saved and indexed.');
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to save rule.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleUploadKnowledgeFile = async (payload: {
-    file: File;
-    title?: string;
-    category?: string;
-  }) => {
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-
-    try {
-      const response = await uploadKnowledgeFile(payload);
-      if (appData) {
-        setAppData({ ...appData, knowledgeBase: response.documents });
-      }
-      setCurrentView('knowledge-base');
-      setNotice('File uploaded and indexed.');
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to upload file.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleKnowledgeSearch = async (query: string) => {
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-
-    try {
-      const response = await searchKnowledge(query);
-      setKnowledgeSearchResult(response);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to search knowledge base.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleOpenKnowledgeDetail = async (documentId: string) => {
-    setBusy(true);
-    setError(null);
-
-    try {
-      const detail = await getKnowledgeDocument(documentId);
-      setKnowledgeDetail(detail);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to load document detail.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleReindexKnowledgeDocument = async (documentId: string) => {
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-
-    try {
-      const detail = await reindexKnowledgeDocumentRequest(documentId);
-      setKnowledgeDetail(detail);
-      if (appData) {
-        const refreshedDocuments = appData.knowledgeBase.map((document) =>
-          document.id === detail.document.id ? detail.document : document,
-        );
-        setAppData({ ...appData, knowledgeBase: refreshedDocuments });
-      }
-      setNotice('Document reindexed.');
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to reindex document.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleDeleteKnowledgeDocument = async (documentId: string) => {
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-
-    try {
-      const response = await deleteKnowledgeDocumentRequest(documentId);
-      if (appData) {
-        setAppData({ ...appData, knowledgeBase: response.documents });
-      }
-      if (knowledgeDetail?.document.id === documentId) {
-        setKnowledgeDetail(null);
-      }
-      setNotice('Document deleted.');
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to delete document.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const filteredHistory = useMemo(() => {
     if (!appData) return [];
     if (!searchQuery.trim()) return appData.history;
@@ -285,18 +155,6 @@ function App() {
       (item) =>
         item.topic.toLowerCase().includes(query) ||
         item.subject.toLowerCase().includes(query) ||
-        item.status.toLowerCase().includes(query),
-    );
-  }, [appData, searchQuery]);
-
-  const filteredKnowledge = useMemo(() => {
-    if (!appData) return [];
-    if (!searchQuery.trim()) return appData.knowledgeBase;
-    const query = searchQuery.toLowerCase();
-    return appData.knowledgeBase.filter(
-      (item) =>
-        item.title.toLowerCase().includes(query) ||
-        item.category.toLowerCase().includes(query) ||
         item.status.toLowerCase().includes(query),
     );
   }, [appData, searchQuery]);
@@ -330,7 +188,6 @@ function App() {
           <StartDebate
             onCreateDebate={handleCreateDebate}
             isSubmitting={busy}
-            knowledgeDocuments={appData.knowledgeBase}
           />
         );
       case 'arena':
@@ -339,22 +196,6 @@ function App() {
         return <History items={filteredHistory} />;
       case 'performance':
         return <Performance data={appData.performance} />;
-      case 'knowledge-base':
-        return (
-          <KnowledgeBase
-            documents={filteredKnowledge}
-            detail={knowledgeDetail}
-            onCreateRule={handleCreateKnowledgeRule}
-            onUploadFile={handleUploadKnowledgeFile}
-            onSearch={handleKnowledgeSearch}
-            onOpenDocument={handleOpenKnowledgeDetail}
-            onDeleteDocument={handleDeleteKnowledgeDocument}
-            onReindexDocument={handleReindexKnowledgeDocument}
-            onCloseDetail={() => setKnowledgeDetail(null)}
-            searchResult={knowledgeSearchResult}
-            isSubmitting={busy}
-          />
-        );
       default:
         return (
           <Dashboard
