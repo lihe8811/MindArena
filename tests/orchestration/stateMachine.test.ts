@@ -52,16 +52,16 @@ describe('RoundStateMachine - Initialization', () => {
 });
 
 describe('RoundStateMachine - Phase Advancement', () => {
-  it('should advance from setup to judge_opening', () => {
+  it('should advance from setup to judge_opening', async () => {
     const machine = new RoundStateMachine('session-1', 'pro', 'first_speaker');
-    const nextPhase = machine.advancePhase();
+    const nextPhase = await machine.advancePhase();
 
     expect(nextPhase).toBe('judge_opening');
     expect(machine.getState().phase).toBe('judge_opening');
     expect(machine.getState().activeSpeaker).toBe('judge');
   });
 
-  it('should advance through all phases to complete', () => {
+  it('should advance through all phases to complete', async () => {
     const machine = new RoundStateMachine('session-1', 'pro', 'first_speaker');
 
     const expectedPhases: DebatePhase[] = [];
@@ -72,26 +72,26 @@ describe('RoundStateMachine - Phase Advancement', () => {
     }
 
     for (const expectedPhase of expectedPhases) {
-      const nextPhase = machine.advancePhase();
+      const nextPhase = await machine.advancePhase();
       expect(nextPhase).toBe(expectedPhase);
       expect(machine.getState().phase).toBe(expectedPhase);
     }
 
-    expect(machine.advancePhase()).toBeNull();
+    expect(await machine.advancePhase()).toBeNull();
   });
 });
 
 describe('RoundStateMachine - Active Speaker Assignment', () => {
-  it('should set judge as active speaker in judge_opening', () => {
+  it('should set judge as active speaker in judge_opening', async () => {
     const machine = new RoundStateMachine('session-1', 'pro', 'first_speaker');
-    machine.advancePhase();
+    await machine.advancePhase();
     expect(machine.getState().activeSpeaker).toBe('judge');
   });
 
-  it('should set teammate as active speaker in student_prep_optional', () => {
+  it('should set teammate as active speaker in student_prep_optional', async () => {
     const machine = new RoundStateMachine('session-1', 'pro', 'first_speaker');
-    machine.advancePhase();
-    machine.advancePhase();
+    await machine.advancePhase();
+    await machine.advancePhase();
     expect(machine.getState().activeSpeaker).toBe('teammate');
   });
 
