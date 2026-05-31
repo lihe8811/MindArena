@@ -57,7 +57,7 @@ function ensureStoreFile() {
   }
 }
 
-function loadStore() {
+export function loadStore() {
   ensureStoreFile();
   return JSON.parse(fs.readFileSync(storePath, 'utf8')) as AppStoreShape;
 }

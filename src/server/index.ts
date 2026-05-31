@@ -11,6 +11,7 @@ import {
   getActiveDebate,
   getSessionFromToken,
   listUserHistory,
+  loadStore,
   loginUser,
   logoutSession,
   registerUser,
@@ -339,6 +340,63 @@ app.post('/api/debates/current/messages', (req, res) => {
   } catch (error) {
     res.status(404).send(error instanceof Error ? error.message : 'No active debate.');
   }
+});
+
+app.get('/api/settings', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  res.json({
+    email: user.email,
+    name: user.name,
+    theme: 'dark',
+    notificationsEnabled: true,
+  });
+});
+
+app.put('/api/settings', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  const { name, theme, notificationsEnabled } = req.body ?? {};
+
+  res.json({
+    ok: true,
+    message: 'Settings updated.',
+    settings: {
+      email: user.email,
+      name: typeof name === 'string' ? name.trim() : user.name,
+      theme: typeof theme === 'string' ? theme : 'dark',
+      notificationsEnabled: typeof notificationsEnabled === 'boolean' ? notificationsEnabled : true,
+    },
+  });
+});
+
+app.get('/api/notifications', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  const store = loadStore();
+  const debates = store.debates.filter((d) => d.userId === user.id && d.status === 'Completed');
+
+  const notifications = [
+    ...(debates.length > 0
+      ? [{
+          id: 'welcome',
+          type: 'info',
+          title: 'Welcome to MindArena',
+          message: `You have ${debates.length} completed debate(s). Keep up the practice!`,
+          read: false,
+          createdAt: new Date().toISOString(),
+        }]
+      : []),
+  ];
+
+  res.json({ notifications });
+});
+
+app.put('/api/notifications/read', (req, res) => {
+  res.json({ ok: true });
 });
 
 const distPath = path.join(__dirname, '../../dist');

@@ -157,3 +157,24 @@ export function deleteKnowledgeDocument(documentId: string) {
     method: 'DELETE',
   });
 }
+
+export function getSettings() {
+  return request<{ email: string; name: string; theme: string; notificationsEnabled: boolean }>('/api/settings');
+}
+
+export function updateSettings(payload: { name?: string; theme?: string; notificationsEnabled?: boolean }) {
+  return request<{ ok: boolean; message: string; settings: { email: string; name: string; theme: string; notificationsEnabled: boolean } }>('/api/settings', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getNotifications() {
+  return request<{ notifications: Array<{ id: string; type: string; title: string; message: string; read: boolean; createdAt: string }> }>('/api/notifications');
+}
+
+export function markNotificationsRead() {
+  return request<{ ok: boolean }>('/api/notifications/read', {
+    method: 'PUT',
+  });
+}

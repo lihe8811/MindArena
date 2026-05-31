@@ -13,10 +13,13 @@ import {
   deleteKnowledgeDocument as deleteKnowledgeDocumentRequest,
   getBootstrap,
   getKnowledgeDocument,
+  getNotifications,
+  getSettings,
   login,
+  logout,
+  markNotificationsRead,
   register,
   reindexKnowledgeDocument as reindexKnowledgeDocumentRequest,
-  logout,
   searchKnowledge,
   sendDebateMessage,
   uploadKnowledgeFile,
@@ -243,7 +246,7 @@ function App() {
       const detail = await reindexKnowledgeDocumentRequest(documentId);
       setKnowledgeDetail(detail);
       if (appData) {
-        const refreshedDocuments = appData.knowledgeBase.map((document) =>
+        const refreshedDocuments = appData.knowledgeBase.map((document: { id: string }) =>
           document.id === detail.document.id ? detail.document : document,
         );
         setAppData({ ...appData, knowledgeBase: refreshedDocuments });
@@ -277,12 +280,41 @@ function App() {
     }
   };
 
+  const handleOpenSettings = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const settings = await getSettings();
+      setNotice(`Settings loaded: ${settings.name} (${settings.email})`);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to load settings.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleOpenNotifications = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const data = await getNotifications();
+      const unread = data.notifications.filter((n) => !n.read).length;
+      setNotice(`You have ${unread} unread notification(s).`);
+      await markNotificationsRead();
+      await refreshApp(); // refresh stats after marking read
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to load notifications.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const filteredHistory = useMemo(() => {
     if (!appData) return [];
     if (!searchQuery.trim()) return appData.history;
     const query = searchQuery.toLowerCase();
     return appData.history.filter(
-      (item) =>
+      (item: { topic: string; subject: string; status: string }) =>
         item.topic.toLowerCase().includes(query) ||
         item.subject.toLowerCase().includes(query) ||
         item.status.toLowerCase().includes(query),
@@ -294,7 +326,7 @@ function App() {
     if (!searchQuery.trim()) return appData.knowledgeBase;
     const query = searchQuery.toLowerCase();
     return appData.knowledgeBase.filter(
-      (item) =>
+      (item: { title: string; category: string; status: string }) =>
         item.title.toLowerCase().includes(query) ||
         item.category.toLowerCase().includes(query) ||
         item.status.toLowerCase().includes(query),
@@ -400,7 +432,13 @@ function App() {
           subtitle={meta.subtitle}
           user={appData.session.user}
           onSearch={setSearchQuery}
-          onToggleSidebar={() => setMobileSidebarOpen((open) => !open)}
+          onToggleSidebar={() => setMobileSidebarOpen((open: boolean) => !open)}
+          onNotificationClick={() => {
+            void handleOpenNotifications();
+          }}
+          onSettingsClick={() => {
+            void handleOpenSettings();
+          }}
         />
         
         <main className="flex-1 mt-14 px-6 py-8 overflow-y-auto">
