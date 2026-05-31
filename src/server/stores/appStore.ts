@@ -240,7 +240,9 @@ function issueLoginVerificationCode(user: StoredUser) {
 
 function cleanupExpiredSessions(store: AppStoreShape) {
   const now = Date.now();
+  const originalLength = store.sessions.length;
   store.sessions = store.sessions.filter((session) => new Date(session.expiresAt).getTime() > now);
+  return store.sessions.length !== originalLength;
 }
 
 export function registerUser(input: { name: string; email: string; password: string }) {
@@ -515,10 +517,12 @@ export function getSessionFromToken(token: string | null) {
   }
 
   const store = loadStore();
-  cleanupExpiredSessions(store);
+  const removedExpiredSessions = cleanupExpiredSessions(store);
   const session = store.sessions.find((entry) => entry.token === token);
   const user = session ? store.users.find((entry) => entry.id === session.userId) : null;
-  saveStore(store);
+  if (removedExpiredSessions) {
+    saveStore(store);
+  }
 
   if (!session || !user) {
     return {
