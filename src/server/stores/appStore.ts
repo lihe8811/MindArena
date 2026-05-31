@@ -6,6 +6,7 @@ import type {
   ActiveDebate,
   AuthResponse,
   DashboardData,
+  DebateSetup,
   HistoryItem,
   PerformanceData,
   RecentDebate,
@@ -108,10 +109,7 @@ function createSessionPayload(user: StoredUser, token: string): AuthResponse {
 
 function cleanupExpiredSessions(store: AppStoreShape) {
   const now = Date.now();
-  const activeSessions = store.sessions.filter((session) => new Date(session.expiresAt).getTime() > now);
-  const removedExpiredSessions = activeSessions.length !== store.sessions.length;
-  store.sessions = activeSessions;
-  return removedExpiredSessions;
+  store.sessions = store.sessions.filter((session) => new Date(session.expiresAt).getTime() > now);
 }
 
 export function registerUser(input: { name: string; email: string; password: string }) {
@@ -189,12 +187,10 @@ export function getSessionFromToken(token: string | null) {
   }
 
   const store = loadStore();
-  const removedExpiredSessions = cleanupExpiredSessions(store);
+  cleanupExpiredSessions(store);
   const session = store.sessions.find((entry) => entry.token === token);
   const user = session ? store.users.find((entry) => entry.id === session.userId) : null;
-  if (removedExpiredSessions) {
-    saveStore(store);
-  }
+  saveStore(store);
 
   if (!session || !user) {
     return {
@@ -250,66 +246,117 @@ function debateToHistory(debate: StoredDebate): HistoryItem {
     id: debate.id,
     topic: debate.topic,
     subject: debate.domain,
-    date: new Date(debate.createdAt).toISOString().slice(0, 10),
+    date: new Date(debate.createdAt).toLocaleDateString(),
     level: debate.rigor,
     status: computedStatus,
-    score: debate.score ?? inferScore(debate.messages.length),
+    score: debate.score ?? 0,
     opponent: debate.opponent,
     createdAt: debate.createdAt,
   };
 }
 
-export function listUserDebates(userId: string) {
-  return loadStore()
-    .debates.filter((debate) => debate.userId === userId)
-    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
-}
-
-export function listUserHistory(userId: string) {
-  return listUserDebates(userId).map(debateToHistory);
-}
-
-export function getActiveDebate(userId: string): ActiveDebate | null {
-  const debate = listUserDebates(userId).find((entry) => entry.status !== 'Completed');
-  return debate ?? null;
-}
-
-export function createDebateForUser(
-  userId: string,
-  input: { topic: string; stance: 'Proponent' | 'Opponent'; rigor: number; knowledgeDocumentIds?: string[] },
-) {
+export function buildDashboardForUser(user: UserProfile): DashboardData {
   const store = loadStore();
-  const createdAt = nowIso();
-  const debate: StoredDebate = {
-    id: randomId('debate'),
-    userId,
-    topic: input.topic,
-    stance: input.stance,
-    rigor: input.rigor,
-    stage: 'Opening Statements',
-    timerLabel: '08:00',
-    status: 'Ready',
-    createdAt,
-    updatedAt: createdAt,
-    score: undefined,
-    knowledgeDocumentIds: input.knowledgeDocumentIds ?? [],
-    opponent: 'AI Opponent Pending',
-    domain: 'User Defined',
-    messages: [
-      {
-        id: randomId('msg'),
-        role: 'system',
-        author: 'Moderator',
-        time: nowLabel(new Date(createdAt)),
-        content: `Debate created. You are arguing as the ${input.stance.toLowerCase()} side on: "${input.topic}".`,
-      },
+  const userDebates = store.debates.filter((debate) => debate.userId === user.id);
+  const completed = userDebates.filter((debate) => debate.status === 'Completed');
+
+  const averageResponseSeconds = 24;
+  const winCount = completed.filter((debate) => inferDebateStatus(debate.messages.length) === 'Victory').length;
+  const winRate = completed.length > 0 ? Math.round((winCount / completed.length) * 100) : 0;
+
+  const recentDebates = userDebates
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
+    .slice(0, 5)
+    .map(debateToRecent);
+
+  return {
+    heroTitle: `Welcome back, ${user.name}`,
+    heroSubtitle: 'Continue your training where you left off. Every session sharpens your edge.',
+    stats: {
+      logicScore: 84,
+      averageResponseSeconds,
+      winRate,
+      debatesCompleted: completed.length,
+    },
+    recentDebates,
+    recommendations: [
+      'Practice Crossfire timing in your next round.',
+      'Review your last loss for logical fallacies.',
+      'Upload new case study files for better context.',
     ],
   };
+}
 
-  store.debates = store.debates.filter((entry) => !(entry.userId === userId && entry.status !== 'Completed'));
+export function listUserHistory(userId: string): HistoryItem[] {
+  const store = loadStore();
+  return store.debates
+    .filter((debate) => debate.userId === userId)
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+    .map(debateToHistory);
+}
+
+export function buildPerformanceForUser(userId: string): PerformanceData {
+  const store = loadStore();
+  const completed = store.debates.filter((debate) => debate.userId === userId && debate.status === 'Completed');
+
+  const winCount = completed.filter((debate) => inferDebateStatus(debate.messages.length) === 'Victory').length;
+  const winRate = completed.length > 0 ? Math.round((winCount / completed.length) * 100) : 0;
+
+  return {
+    highlights: [
+      { label: 'Win Rate', value: `${winRate}%`, trend: '+4%' },
+      { label: 'Elo Rating', value: '1420', trend: '+15' },
+      { label: 'Global Rank', value: '#1,204', trend: '-12', isDown: true },
+      { label: 'Avg Response', value: '24.2s', trend: '-1.4s' },
+    ],
+    skillBalance: [
+      { label: 'Logic', value: 85 },
+      { label: 'Rhetoric', value: 72 },
+      { label: 'Evidence', value: 90 },
+      { label: 'Rebuttal', value: 64 },
+      { label: 'Clarity', value: 78 },
+    ],
+    insight:
+      'Your use of evidence remains top-tier, but your rebuttal efficiency is slipping. Focus on faster structure during prep time.',
+    recommendation: 'Join a high-rigor (4+) round to test your rebuttal speed under pressure.',
+    milestoneProgress: 65,
+  };
+}
+
+export function createDebateForUser(userId: string, setup: DebateSetup) {
+  const store = loadStore();
+  const id = randomId('debate');
+  const createdAt = nowIso();
+
+  const debate: StoredDebate = {
+    id,
+    userId,
+    topic: setup.topic,
+    stance: setup.stance,
+    rigor: setup.rigor,
+    knowledgeDocumentIds: setup.knowledgeDocumentIds,
+    stage: 'Constructive',
+    timerLabel: '04:00',
+    status: 'Ready',
+    messages: [],
+    createdAt,
+    updatedAt: createdAt,
+    opponent: 'Rival AI (Level ' + setup.rigor + ')',
+    domain: 'General Policy',
+  };
+
   store.debates.push(debate);
   saveStore(store);
   return debate;
+}
+
+export function getActiveDebate(userId: string) {
+  const store = loadStore();
+  const debate = store.debates
+    .filter((entry) => entry.userId === userId && entry.status !== 'Completed')
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))[0];
+
+  return debate || null;
 }
 
 export function appendDebateMessage(userId: string, author: string, content: string) {
@@ -350,63 +397,4 @@ export function appendDebateMessage(userId: string, author: string, content: str
 
   saveStore(store);
   return debate;
-}
-
-export function buildDashboardForUser(user: UserProfile): DashboardData {
-  const debates = listUserDebates(user.id);
-  const completed = debates.filter((debate) => debate.status === 'Completed');
-  const histories = completed.map(debateToHistory);
-  const victories = histories.filter((entry) => entry.status === 'Victory').length;
-  const averageResponseSeconds = debates.length
-    ? Number((12 + debates.reduce((sum, debate) => sum + debate.rigor, 0) / debates.length).toFixed(1))
-    : 0;
-  const winRate = completed.length ? Math.round((victories / completed.length) * 100) : 0;
-
-  return {
-    heroTitle: 'Train arguments that hold up under pressure',
-    heroSubtitle:
-      'Track your debate history, launch new rounds, and build a private knowledge base that your future AI agent can use.',
-    stats: {
-      logicScore: histories.length ? Math.round(histories.reduce((sum, item) => sum + item.score, 0) / histories.length) : 0,
-      averageResponseSeconds,
-      winRate,
-      debatesCompleted: completed.length,
-    },
-    recentDebates: debates.slice(0, 5).map(debateToRecent),
-    recommendations: [
-      'Add source documents to the knowledge base before difficult policy debates.',
-      'Keep opening statements concise so rebuttals have more room later.',
-      'Resume unfinished debates from the Arena instead of restarting from scratch.',
-    ],
-  };
-}
-
-export function buildPerformanceForUser(userId: string): PerformanceData {
-  const history = listUserHistory(userId);
-  const averageScore = history.length
-    ? Math.round(history.reduce((sum, item) => sum + item.score, 0) / history.length)
-    : 0;
-
-  return {
-    highlights: [
-      { label: 'Win Rate', value: `${history.length ? Math.round((history.filter((item) => item.status === 'Victory').length / history.length) * 100) : 0}%`, trend: '+0%' },
-      { label: 'Elo Rating', value: String(1200 + averageScore * 4), trend: '+12' },
-      { label: 'Global Rank', value: history.length ? '#842' : '#--', trend: '-0', isDown: true },
-      { label: 'Avg Response', value: history.length ? '13.2s' : '--', trend: '-0.0s' },
-    ],
-    skillBalance: [
-      { label: 'Logical Consistency', value: Math.max(40, averageScore) },
-      { label: 'Rhetorical Flair', value: Math.max(35, averageScore - 8) },
-      { label: 'Evidence Integration', value: Math.max(30, averageScore - 4) },
-      { label: 'Response Countering', value: Math.max(28, averageScore - 12) },
-      { label: 'Emotional Intelligence', value: Math.max(25, averageScore - 10) },
-    ],
-    insight:
-      history.length > 0
-        ? 'Your stored debate history shows the strongest sessions happen after you ground the debate with explicit rules or documents.'
-        : 'No completed debates yet. Finish a few rounds to unlock more reliable performance insights.',
-    recommendation:
-      'Use the knowledge base to preload rules and supporting sources, then start a new debate so future AI turns can cite them.',
-    milestoneProgress: Math.min(100, history.length * 15),
-  };
 }

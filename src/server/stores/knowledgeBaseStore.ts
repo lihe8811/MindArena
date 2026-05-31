@@ -7,6 +7,7 @@ import type {
   KnowledgeChunkPreview,
   KnowledgeDocument,
   KnowledgeDocumentDetail,
+  KnowledgeSearchResponse,
   KnowledgeSearchResult,
 } from '@/shared/types';
 
@@ -214,8 +215,7 @@ function toPublicDocument(document: StoredKnowledgeDocument): KnowledgeDocument 
 
 export function listKnowledgeDocuments(ownerUserId: string) {
   return loadStore()
-    .documents
-    .filter((document) => document.ownerUserId === ownerUserId)
+    .documents.filter((document) => document.ownerUserId === ownerUserId)
     .map(toPublicDocument)
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
@@ -245,83 +245,100 @@ export function getKnowledgeDocumentDetail(ownerUserId: string, documentId: stri
 
 export function createKnowledgeEntry(input: CreateKnowledgeInput) {
   const store = loadStore();
-  const parsedText = cleanText(input.content);
-
-  if (!parsedText) {
-    throw new Error('Knowledge content is empty after parsing.');
-  }
-
-  const documentId = `doc-${Date.now()}`;
+  const id = `knw-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   const createdAt = new Date().toISOString();
-  const chunks = chunkText(parsedText);
 
   const document: StoredKnowledgeDocument = {
-    id: documentId,
+    id,
     ownerUserId: input.ownerUserId,
-    title: input.title.trim() || input.fileName || 'Untitled knowledge',
-    category: input.category.trim() || 'General',
+    title: input.title,
+    category: input.category,
     sourceType: input.sourceType,
     status: 'Indexed',
-    summary: summarize(parsedText),
-    chunkCount: chunks.length,
-    wordCount: wordCount(parsedText),
+    summary: summarize(input.content),
+    chunkCount: 0,
+    wordCount: wordCount(input.content),
     createdAt,
-    updatedAt: createdAt,
+    rawText: input.content,
     fileName: input.fileName,
     mimeType: input.mimeType,
-    rawText: parsedText,
   };
 
-  const storedChunks: KnowledgeChunk[] = chunks.map((text, index) => ({
-    id: `${documentId}-chunk-${index + 1}`,
-    documentId,
+  const textChunks = chunkText(input.content);
+  document.chunkCount = textChunks.length;
+
+  const chunks: KnowledgeChunk[] = textChunks.map((text, index) => ({
+    id: `${id}-ch-${index}`,
+    documentId: id,
     index,
     text,
     vector: embedText(text),
   }));
 
-  store.documents.unshift(document);
-  store.chunks.push(...storedChunks);
+  store.documents.push(document);
+  store.chunks.push(...chunks);
   saveStore(store);
 
   return toPublicDocument(document);
 }
 
-export async function createKnowledgeFromFile(input: {
-  ownerUserId: string;
-  fileName: string;
-  mimeType: string;
-  content: Buffer;
-  title?: string;
-  category?: string;
-}) {
-  const parsed = await parseFileText(input.fileName, input.mimeType, input.content);
+export async function createKnowledgeFromFile(input: Omit<CreateKnowledgeInput, 'content' | 'sourceType'> & { content: Buffer }) {
+  const text = await parseFileText(input.fileName || 'unknown', input.mimeType || '', input.content);
   return createKnowledgeEntry({
-    ownerUserId: input.ownerUserId,
-    title: input.title?.trim() || input.fileName,
-    category: input.category?.trim() || 'Uploaded File',
+    ...input,
+    content: text,
     sourceType: 'file',
-    content: parsed,
-    fileName: input.fileName,
-    mimeType: input.mimeType,
   });
 }
 
 export function deleteKnowledgeDocument(ownerUserId: string, documentId: string) {
   const store = loadStore();
-  const before = store.documents.length;
-  store.documents = store.documents.filter((document) => !(document.id === documentId && document.ownerUserId === ownerUserId));
-  store.chunks = store.chunks.filter((chunk) => chunk.documentId !== documentId);
+  const index = store.documents.findIndex((doc) => doc.id === documentId && doc.ownerUserId === ownerUserId);
 
-  if (store.documents.length === before) {
+  if (index === -1) {
     throw new Error('Knowledge document not found.');
   }
 
+  store.documents.splice(index, 1);
+  store.chunks = store.chunks.filter((chunk) => chunk.documentId !== documentId);
   saveStore(store);
+
   return listKnowledgeDocuments(ownerUserId);
 }
 
-export function reindexKnowledgeDocument(ownerUserId: string, documentId: string) {
+export function searchKnowledgeBase(ownerUserId: string, query: string, limit = 8): KnowledgeSearchResponse {
+  const store = loadStore();
+  const queryVector = embedText(query);
+
+  const userDocumentIds = new Set(
+    store.documents.filter((doc) => doc.ownerUserId === ownerUserId).map((doc) => doc.id),
+  );
+
+  const results = store.chunks
+    .filter((chunk) => userDocumentIds.has(chunk.documentId))
+    .map((chunk) => {
+      const document = store.documents.find((doc) => doc.id === chunk.documentId)!;
+      return {
+        id: chunk.id,
+        documentId: chunk.documentId,
+        documentTitle: document.title,
+        category: document.category,
+        sourceType: document.sourceType,
+        excerpt: chunk.text,
+        score: cosineSimilarity(queryVector, chunk.vector),
+      };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+
+  return {
+    query,
+    total: results.length,
+    results,
+  };
+}
+
+export function reindexKnowledgeDocument(ownerUserId: string, documentId: string): KnowledgeDocumentDetail {
   const store = loadStore();
   const document = store.documents.find((entry) => entry.id === documentId && entry.ownerUserId === ownerUserId);
 
@@ -329,72 +346,24 @@ export function reindexKnowledgeDocument(ownerUserId: string, documentId: string
     throw new Error('Knowledge document not found.');
   }
 
-  const chunks = chunkText(document.rawText);
-  document.status = 'Indexed';
-  document.summary = summarize(document.rawText);
-  document.chunkCount = chunks.length;
-  document.wordCount = wordCount(document.rawText);
-  document.updatedAt = new Date().toISOString();
-
+  // Remove existing chunks
   store.chunks = store.chunks.filter((chunk) => chunk.documentId !== documentId);
-  store.chunks.push(
-    ...chunks.map((text, index) => ({
-      id: `${documentId}-chunk-${index + 1}`,
-      documentId,
-      index,
-      text,
-      vector: embedText(text),
-    })),
-  );
 
+  // Regenerate chunks
+  const textChunks = chunkText(document.rawText);
+  document.chunkCount = textChunks.length;
+  document.wordCount = wordCount(document.rawText);
+
+  const chunks: KnowledgeChunk[] = textChunks.map((text, index) => ({
+    id: `${documentId}-ch-${index}`,
+    documentId,
+    index,
+    text,
+    vector: embedText(text),
+  }));
+
+  store.chunks.push(...chunks);
   saveStore(store);
+
   return getKnowledgeDocumentDetail(ownerUserId, documentId);
-}
-
-export function searchKnowledgeBase(ownerUserId: string, query: string, limit = 8) {
-  const trimmed = query.trim();
-  if (!trimmed) {
-    return {
-      query: '',
-      total: 0,
-      results: [] as KnowledgeSearchResult[],
-    };
-  }
-
-  const store = loadStore();
-  const userDocuments = new Set(
-    store.documents
-      .filter((document) => document.ownerUserId === ownerUserId)
-      .map((document) => document.id),
-  );
-  const queryVector = embedText(trimmed);
-  const scored = store.chunks
-    .filter((chunk) => userDocuments.has(chunk.documentId))
-    .map((chunk) => ({
-      chunk,
-      score: cosineSimilarity(queryVector, chunk.vector),
-    }))
-    .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit);
-
-  const results: KnowledgeSearchResult[] = scored.map(({ chunk, score }) => {
-    const document = store.documents.find((entry) => entry.id === chunk.documentId);
-
-    return {
-      id: chunk.id,
-      documentId: chunk.documentId,
-      documentTitle: document?.title ?? 'Unknown document',
-      category: document?.category ?? 'General',
-      sourceType: document?.sourceType ?? 'file',
-      excerpt: chunk.text.slice(0, 240).trim(),
-      score: Number(score.toFixed(4)),
-    };
-  });
-
-  return {
-    query: trimmed,
-    total: results.length,
-    results,
-  };
 }
