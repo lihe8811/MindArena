@@ -18,7 +18,6 @@ An AI-powered rhetoric and debate training platform. Practice argumentation agai
 - **Build**: Vite 6
 - **Styling**: Tailwind CSS v4
 - **Animations**: Motion (Framer Motion)
-- **AI**: Google Gemini (`@google/genai`)
 - **Icons**: Lucide React
 
 ## Getting Started
@@ -30,11 +29,10 @@ An AI-powered rhetoric and debate training platform. Practice argumentation agai
    bun install
    ```
 
-2. Copy the example env file and add your API key:
+2. Copy the example env file:
    ```
    cp .env.example .env.local
    ```
-   Set `GEMINI_API_KEY` to your [Google Gemini API key](https://aistudio.google.com/app/apikey).
 
 3. Start the dev server:
    ```
@@ -56,5 +54,32 @@ The app runs on [http://localhost:3000](http://localhost:3000).
 
 | Variable | Description |
 |---|---|
-| `GEMINI_API_KEY` | Google Gemini API key (required) |
 | `APP_URL` | Deployment URL for self-referential links and OAuth callbacks |
+| `DATABASE_URL` | Neon Postgres connection string used by Drizzle and the server |
+
+## Neon Database
+
+MindArena now defaults to **Neon Postgres** for the database layer.
+
+1. Create a database in [Neon](https://neon.tech/).
+2. Copy its pooled connection string into `.env.local` as `DATABASE_URL`.
+3. Run the schema migration commands:
+   ```bash
+   bun run db:generate
+   bun run db:migrate
+   ```
+
+For email verification in registration, also set:
+
+- `RESEND_API_KEY`
+- `EMAIL_FROM`
+
+If those are missing, the server falls back to printing verification codes in the dev log.
+
+The current schema includes:
+
+- user/session tables
+- persisted user settings and quotas
+- debate templates, stage timers, scorecards, replay highlights, exports/imports
+- knowledge documents, chunks, collections, shares, citations, and table cards
+- background jobs, audit events, scripted opponent profiles, and tool-call logs

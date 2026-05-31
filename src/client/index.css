@@ -1,0 +1,98 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-primary: #a78bfa;
+  --color-primary-container: #7c3aed;
+  --color-on-primary: #0a0012;
+  --color-on-primary-container: #ede9fe;
+
+  --color-secondary: #71717a;
+  --color-secondary-container: #27272a;
+  --color-on-secondary: #09090b;
+  --color-on-secondary-container: #a1a1aa;
+
+  --color-tertiary: #34d399;
+  --color-tertiary-container: #065f46;
+  --color-on-tertiary: #001a12;
+  --color-on-tertiary-container: #bbf7d0;
+
+  --color-background: #09090b;
+  --color-on-background: #fafafa;
+
+  --color-surface: #0c0c0f;
+  --color-on-surface: #fafafa;
+  --color-surface-variant: #18181b;
+  --color-on-surface-variant: #a1a1aa;
+
+  --color-outline: #52525b;
+  --color-outline-variant: #27272a;
+
+  --color-error: #ef4444;
+  --color-on-error: #1a0000;
+
+  --color-surface-container-lowest: #09090b;
+  --color-surface-container-low: #0f0f12;
+  --color-surface-container: #121215;
+  --color-surface-container-high: #18181b;
+  --color-surface-container-highest: #1e1e22;
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  :root[data-theme='light'] {
+    color-scheme: light;
+    --color-primary: #7c3aed;
+    --color-primary-container: #a78bfa;
+    --color-on-primary: #ffffff;
+    --color-on-primary-container: #240046;
+    --color-secondary: #52525b;
+    --color-secondary-container: #e4e4e7;
+    --color-on-secondary: #fafafa;
+    --color-on-secondary-container: #3f3f46;
+    --color-tertiary: #059669;
+    --color-tertiary-container: #d1fae5;
+    --color-on-tertiary: #ffffff;
+    --color-on-tertiary-container: #064e3b;
+    --color-background: #f5f5f5;
+    --color-on-background: #09090b;
+    --color-surface: #ffffff;
+    --color-on-surface: #09090b;
+    --color-surface-variant: #f4f4f5;
+    --color-on-surface-variant: #52525b;
+    --color-outline: #a1a1aa;
+    --color-outline-variant: #d4d4d8;
+    --color-error: #dc2626;
+    --color-on-error: #ffffff;
+    --color-surface-container-lowest: #fafafa;
+    --color-surface-container-low: #f4f4f5;
+    --color-surface-container: #ffffff;
+    --color-surface-container-high: #e4e4e7;
+    --color-surface-container-highest: #d4d4d8;
+  }
+
+  body {
+    @apply bg-background text-on-background antialiased;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv02";
+    transition:
+      background-color 150ms ease,
+      color 150ms ease;
+  }
+}
+
+@layer utilities {
+  .bg-grid {
+    background-image: radial-gradient(circle at center, var(--color-outline-variant) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  
+  .glass {
+    @apply bg-surface/80 backdrop-blur-md border border-outline-variant;
+  }
+}
