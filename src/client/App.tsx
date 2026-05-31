@@ -7,21 +7,39 @@ import { Arena } from './pages/Arena';
 import { History } from './pages/History';
 import { Performance } from './pages/Performance';
 import { KnowledgeBase } from './pages/KnowledgeBase';
+import { Settings } from './pages/Settings';
 import {
+  confirmLogin,
   createDebate,
   createKnowledgeRule,
   deleteKnowledgeDocument as deleteKnowledgeDocumentRequest,
   getBootstrap,
+  getStoredRememberSessionPreference,
   getKnowledgeDocument,
+  getSettings,
   login,
+  requestPasswordReset,
   register,
+  resendLoginVerification,
+  resendVerification,
   reindexKnowledgeDocument as reindexKnowledgeDocumentRequest,
+  resetPassword,
   logout,
   searchKnowledge,
   sendDebateMessage,
+  syncStoredTokenPersistence,
+  updateSettings as updateSettingsRequest,
   uploadKnowledgeFile,
+  verifyEmail,
 } from './lib/api';
-import type { AppBootstrap, KnowledgeDocumentDetail, KnowledgeSearchResponse, View } from '@/shared/types';
+import type {
+  AppBootstrap,
+  KnowledgeDocumentDetail,
+  KnowledgeSearchResponse,
+  UserSettings,
+  VerificationChallenge,
+  View,
+} from '@/shared/types';
 
 const VIEW_META: Record<Exclude<View, 'landing'>, { title: string; subtitle: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Your debate workspace' },
@@ -30,7 +48,20 @@ const VIEW_META: Record<Exclude<View, 'landing'>, { title: string; subtitle: str
   history: { title: 'History', subtitle: 'Past sessions and results' },
   performance: { title: 'Performance', subtitle: 'Metrics and coaching notes' },
   'knowledge-base': { title: 'Knowledge Base', subtitle: 'Frameworks and study modules' },
+  settings: { title: 'Settings', subtitle: 'Profile, defaults, and workspace preferences' },
 };
+
+function getAuthenticatedDefaultView(data: AppBootstrap): View {
+  if (!data.session.authenticated) {
+    return 'landing';
+  }
+
+  if (data.activeDebate && data.settings?.autoOpenArena !== false) {
+    return 'arena';
+  }
+
+  return 'dashboard';
+}
 
 function App() {
   const [appData, setAppData] = useState<AppBootstrap | null>(null);
@@ -43,13 +74,29 @@ function App() {
   const [knowledgeSearchResult, setKnowledgeSearchResult] = useState<KnowledgeSearchResponse | null>(null);
   const [knowledgeDetail, setKnowledgeDetail] = useState<KnowledgeDocumentDetail | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [pendingLoginVerification, setPendingLoginVerification] = useState<VerificationChallenge | null>(null);
+  const [pendingVerification, setPendingVerification] = useState<VerificationChallenge | null>(null);
+  const [pendingPasswordReset, setPendingPasswordReset] = useState<VerificationChallenge | null>(null);
 
   const refreshApp = useCallback(async () => {
     const data = await getBootstrap();
     setAppData(data);
-    setCurrentView(data.session.authenticated ? (data.activeDebate ? 'arena' : 'dashboard') : 'landing');
+    setCurrentView(getAuthenticatedDefaultView(data));
     return data;
   }, []);
+
+  const handleRetryBootstrap = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      await refreshApp();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Failed to load the app.');
+    } finally {
+      setLoading(false);
+    }
+  }, [refreshApp]);
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -65,6 +112,35 @@ function App() {
     void bootstrap();
   }, [refreshApp]);
 
+  useEffect(() => {
+    if (!appData?.session.token) return;
+    const rememberSession =
+      appData.settings?.rememberSession ?? getStoredRememberSessionPreference() ?? true;
+    syncStoredTokenPersistence(appData.session.token, rememberSession);
+  }, [appData?.session.token, appData?.settings?.rememberSession]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const root = document.documentElement;
+    const preference = appData?.settings?.theme ?? 'system';
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: light)');
+
+    const applyTheme = (theme: 'light' | 'dark') => {
+      root.dataset.theme = theme;
+    };
+
+    if (preference === 'system') {
+      const syncTheme = () => applyTheme(mediaQuery.matches ? 'light' : 'dark');
+      syncTheme();
+      mediaQuery.addEventListener('change', syncTheme);
+      return () => mediaQuery.removeEventListener('change', syncTheme);
+    }
+
+    applyTheme(preference);
+    return undefined;
+  }, [appData?.settings?.theme]);
+
   const handleLogin = async (email: string, password: string) => {
     if (!email.trim() || !password.trim()) {
       setError('Please enter your email and password.');
@@ -76,12 +152,48 @@ function App() {
     setNotice(null);
 
     try {
-      await login(email, password);
-      const data = await refreshApp();
-      setCurrentView(data.activeDebate ? 'arena' : 'dashboard');
-      setNotice('Signed in successfully.');
+      const challenge = await login(email, password);
+      setPendingLoginVerification(challenge);
+      setPendingVerification(null);
+      setPendingPasswordReset(null);
+      setCurrentView('landing');
+      setNotice(`Sign-in code sent to ${challenge.email}. Enter it to finish logging in.`);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Unable to sign in.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleConfirmLogin = async (email: string, code: string) => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      await confirmLogin(email, code);
+      setPendingLoginVerification(null);
+      const data = await refreshApp();
+      setCurrentView(getAuthenticatedDefaultView(data));
+      setNotice('Signed in successfully.');
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to finish sign in.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleResendLoginVerification = async (email: string) => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const challenge = await resendLoginVerification(email);
+      setPendingLoginVerification(challenge);
+      setNotice(`A new sign-in code was sent to ${challenge.email}.`);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to resend sign-in code.');
     } finally {
       setBusy(false);
     }
@@ -93,12 +205,86 @@ function App() {
     setNotice(null);
 
     try {
-      await register(payload);
-      await refreshApp();
-      setCurrentView('dashboard');
-      setNotice('Account created. Your workspace is now persistent.');
+      const verification = await register(payload);
+      setPendingLoginVerification(null);
+      setPendingVerification(verification);
+      setPendingPasswordReset(null);
+      setCurrentView('landing');
+      setNotice(`Verification code sent to ${verification.email}. Confirm it before signing in.`);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Unable to create account.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleVerifyEmail = async (email: string, code: string) => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      await verifyEmail({ email, code });
+      setPendingLoginVerification(null);
+      setPendingVerification(null);
+      setCurrentView('landing');
+      setNotice('Email verified. You can now sign in with your password.');
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to verify email.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleResendVerification = async (email: string) => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const verification = await resendVerification(email);
+      setPendingLoginVerification(null);
+      setPendingVerification(verification);
+      setNotice(`A new verification code was sent to ${verification.email}.`);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to resend verification code.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRequestPasswordReset = async (email: string) => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const resetChallenge = await requestPasswordReset(email);
+      setPendingLoginVerification(null);
+      setPendingPasswordReset(resetChallenge);
+      setPendingVerification(null);
+      setCurrentView('landing');
+      setNotice(`Reset code sent to ${resetChallenge.email}. Enter it and choose a new passcode.`);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to request password reset.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleResetPassword = async (email: string, code: string, password: string) => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      await resetPassword({ email, code, password });
+      setPendingLoginVerification(null);
+      setPendingPasswordReset(null);
+      setCurrentView('landing');
+      setNotice('Password updated. You can now sign in with your new passcode.');
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to reset password.');
     } finally {
       setBusy(false);
     }
@@ -126,10 +312,14 @@ function App() {
     setNotice(null);
 
     try {
-      await createDebate(payload);
-      await refreshApp();
-      setCurrentView('arena');
-      setNotice('Debate room created and saved.');
+      const debate = await createDebate(payload);
+      const data = await refreshApp();
+      setCurrentView(data.settings?.autoOpenArena === false ? 'dashboard' : 'arena');
+      setNotice(
+        data.settings?.autoOpenArena === false
+          ? `Debate room created and saved. Open Arena when you're ready for "${debate.topic}".`
+          : 'Debate room created and saved.',
+      );
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Unable to create debate.');
     } finally {
@@ -277,6 +467,32 @@ function App() {
     }
   };
 
+  const handleSaveSettings = async (settings: UserSettings) => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const response = await updateSettingsRequest(settings);
+      const freshSettings = await getSettings();
+      if (appData) {
+        setAppData({
+          ...appData,
+          session: {
+            ...appData.session,
+            user: response.user,
+          },
+          settings: freshSettings.settings,
+        });
+      }
+      setNotice('Settings saved.');
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to save settings.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const filteredHistory = useMemo(() => {
     if (!appData) return [];
     if (!searchQuery.trim()) return appData.history;
@@ -301,7 +517,7 @@ function App() {
     );
   }, [appData, searchQuery]);
 
-  if (loading || !appData) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-background text-on-background flex items-center justify-center">
         <div className="text-center">
@@ -312,10 +528,59 @@ function App() {
     );
   }
 
+  if (!appData) {
+    return (
+      <div className="min-h-screen bg-background text-on-background flex items-center justify-center px-6">
+        <div className="w-full max-w-lg rounded-3xl border border-outline-variant bg-surface-container-low p-8 text-center shadow-2xl">
+          <p className="text-sm uppercase tracking-[0.3em] text-primary font-black">MindArena</p>
+          <h1 className="mt-4 text-2xl font-black text-on-surface">Workspace failed to load</h1>
+          <p className="mt-3 text-sm text-secondary">
+            {error ?? 'The app could not reach the bootstrap endpoint. Please retry.'}
+          </p>
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                void handleRetryBootstrap();
+              }}
+              className="rounded-2xl bg-primary px-5 py-3 text-sm font-black text-on-primary disabled:opacity-60"
+            >
+              Retry
+            </button>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="rounded-2xl border border-outline-variant px-5 py-3 text-sm font-black text-on-surface"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const renderView = () => {
     switch (currentView) {
       case 'landing':
-        return <Landing onLogin={handleLogin} onRegister={handleRegister} isLoading={busy} error={error} />;
+        return (
+          <Landing
+            onLogin={handleLogin}
+            onConfirmLogin={handleConfirmLogin}
+            onRegister={handleRegister}
+            onResendLoginVerification={handleResendLoginVerification}
+            onVerifyEmail={handleVerifyEmail}
+            onResendVerification={handleResendVerification}
+            onRequestPasswordReset={handleRequestPasswordReset}
+            onResetPassword={handleResetPassword}
+            loginChallenge={pendingLoginVerification}
+            verificationChallenge={pendingVerification}
+            passwordResetChallenge={pendingPasswordReset}
+            isLoading={busy}
+            error={error}
+            notice={notice}
+          />
+        );
       case 'dashboard':
         return (
           <Dashboard
@@ -331,6 +596,10 @@ function App() {
             onCreateDebate={handleCreateDebate}
             isSubmitting={busy}
             knowledgeDocuments={appData.knowledgeBase}
+            defaultStance={appData.settings?.defaultStance}
+            defaultRigor={appData.settings?.defaultRigor}
+            autoOpenArena={appData.settings?.autoOpenArena}
+            onOpenKnowledgeBase={() => setCurrentView('knowledge-base')}
           />
         );
       case 'arena':
@@ -355,6 +624,8 @@ function App() {
             isSubmitting={busy}
           />
         );
+      case 'settings':
+        return <Settings settings={appData.settings} isSubmitting={busy} onSave={handleSaveSettings} />;
       default:
         return (
           <Dashboard
@@ -368,7 +639,24 @@ function App() {
   };
 
   if (!appData.session.authenticated || currentView === 'landing') {
-    return <Landing onLogin={handleLogin} onRegister={handleRegister} isLoading={busy} error={error} />;
+    return (
+      <Landing
+        onLogin={handleLogin}
+        onConfirmLogin={handleConfirmLogin}
+        onRegister={handleRegister}
+        onResendLoginVerification={handleResendLoginVerification}
+        onVerifyEmail={handleVerifyEmail}
+        onResendVerification={handleResendVerification}
+        onRequestPasswordReset={handleRequestPasswordReset}
+        onResetPassword={handleResetPassword}
+        loginChallenge={pendingLoginVerification}
+        verificationChallenge={pendingVerification}
+        passwordResetChallenge={pendingPasswordReset}
+        isLoading={busy}
+        error={error}
+        notice={notice}
+      />
+    );
   }
 
   const meta = VIEW_META[currentView as Exclude<View, 'landing'>];
@@ -390,17 +678,23 @@ function App() {
         }}
         user={appData.session.user}
         hasActiveDebate={Boolean(appData.activeDebate)}
+        compact={Boolean(appData.settings?.compactSidebar)}
         isMobileOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
       />
 
-      <div className="flex-1 ml-0 md:ml-64 flex flex-col min-w-0">
+      <div
+        className={`flex-1 ml-0 flex flex-col min-w-0 transition-[margin] ${
+          appData.settings?.compactSidebar ? 'md:ml-20' : 'md:ml-64'
+        }`}
+      >
         <TopBar
           title={meta.title}
           subtitle={meta.subtitle}
           user={appData.session.user}
           onSearch={setSearchQuery}
           onToggleSidebar={() => setMobileSidebarOpen((open) => !open)}
+          onOpenSettings={() => setCurrentView('settings')}
         />
         
         <main className="flex-1 mt-14 px-6 py-8 overflow-y-auto">

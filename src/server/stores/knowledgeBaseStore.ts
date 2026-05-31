@@ -102,6 +102,7 @@ async function parseFileText(fileName: string, mimeType: string, content: Buffer
       '.htm',
       '.json',
       '.log',
+      '.sql',
     ].includes(extension) ||
     mimeType.startsWith('text/')
   ) {

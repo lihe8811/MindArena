@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Sparkles, Swords } from 'lucide-react';
 import type { DebateSetup, KnowledgeDocument } from '@/shared/types';
 
@@ -6,6 +6,10 @@ interface StartDebateProps {
   onCreateDebate: (payload: DebateSetup) => Promise<void>;
   isSubmitting?: boolean;
   knowledgeDocuments: KnowledgeDocument[];
+  defaultStance?: DebateSetup['stance'];
+  defaultRigor?: number;
+  autoOpenArena?: boolean;
+  onOpenKnowledgeBase?: () => void;
 }
 
 const prompts = [
@@ -14,13 +18,33 @@ const prompts = [
   'Governments should regulate addictive recommendation algorithms.',
 ];
 
-export function StartDebate({ onCreateDebate, isSubmitting, knowledgeDocuments }: StartDebateProps) {
+export function StartDebate({
+  onCreateDebate,
+  isSubmitting,
+  knowledgeDocuments,
+  defaultStance = 'Proponent',
+  defaultRigor = 3,
+  autoOpenArena = true,
+  onOpenKnowledgeBase,
+}: StartDebateProps) {
   const [topic, setTopic] = useState(prompts[0]);
-  const [stance, setStance] = useState<DebateSetup['stance']>('Proponent');
-  const [rigor, setRigor] = useState(3);
+  const [stance, setStance] = useState<DebateSetup['stance']>(defaultStance);
+  const [rigor, setRigor] = useState(defaultRigor);
   const [selectedKnowledgeIds, setSelectedKnowledgeIds] = useState<string[]>([]);
 
   const rigorLabel = useMemo(() => ['Warmup', 'Casual', 'Focused', 'Competitive', 'Tournament'][rigor - 1], [rigor]);
+  const selectedKnowledge = useMemo(
+    () => knowledgeDocuments.filter((document) => selectedKnowledgeIds.includes(document.id)),
+    [knowledgeDocuments, selectedKnowledgeIds],
+  );
+
+  useEffect(() => {
+    setStance(defaultStance);
+  }, [defaultStance]);
+
+  useEffect(() => {
+    setRigor(defaultRigor);
+  }, [defaultRigor]);
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -34,6 +58,7 @@ export function StartDebate({ onCreateDebate, isSubmitting, knowledgeDocuments }
           className="rounded-3xl border border-outline-variant bg-surface-container p-8 space-y-8"
           onSubmit={async (event) => {
             event.preventDefault();
+            if (!topic.trim()) return;
             await onCreateDebate({ topic, stance, rigor, knowledgeDocumentIds: selectedKnowledgeIds });
           }}
         >
@@ -97,11 +122,26 @@ export function StartDebate({ onCreateDebate, isSubmitting, knowledgeDocuments }
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary mb-3">Knowledge Context</p>
             {knowledgeDocuments.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-outline-variant bg-surface-container-low px-4 py-5 text-sm text-secondary">
-                No indexed documents yet. Add rules or files in the Knowledge Base to give future AI rounds structured context.
+                <p>No indexed documents yet. Add rules or files in the Knowledge Base to give future AI rounds structured context.</p>
+                {onOpenKnowledgeBase ? (
+                  <button
+                    type="button"
+                    onClick={onOpenKnowledgeBase}
+                    className="mt-3 inline-flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/10 px-4 py-2 text-xs font-bold text-primary"
+                  >
+                    Open Knowledge Base
+                  </button>
+                ) : null}
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto">
-                {knowledgeDocuments.map((document) => {
+              <div className="space-y-3">
+                <div className="rounded-2xl bg-surface-container-low px-4 py-3 text-sm text-secondary">
+                  {selectedKnowledge.length > 0
+                    ? `Using ${selectedKnowledge.length} document${selectedKnowledge.length === 1 ? '' : 's'} as debate context.`
+                    : 'No knowledge selected yet. Pick one or more indexed documents to attach them to this debate.'}
+                </div>
+                <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto">
+                  {knowledgeDocuments.map((document) => {
                   const selected = selectedKnowledgeIds.includes(document.id);
                   return (
                     <button
@@ -124,9 +164,13 @@ export function StartDebate({ onCreateDebate, isSubmitting, knowledgeDocuments }
                       <p className="mt-1 text-xs text-secondary">
                         {document.category} • {document.chunkCount} chunks
                       </p>
+                      {selected ? (
+                        <p className="mt-2 text-[10px] font-black uppercase tracking-[0.2em] text-primary">Attached</p>
+                      ) : null}
                     </button>
                   );
-                })}
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -149,6 +193,11 @@ export function StartDebate({ onCreateDebate, isSubmitting, knowledgeDocuments }
             <div className="rounded-xl bg-surface-container-low px-4 py-3">Creates debate sessions on the server.</div>
             <div className="rounded-xl bg-surface-container-low px-4 py-3">Persists transcripts, history, and resume state on disk.</div>
             <div className="rounded-xl bg-surface-container-low px-4 py-3">Lets you attach indexed knowledge before the AI layer is wired in.</div>
+            <div className="rounded-xl bg-surface-container-low px-4 py-3">
+              {autoOpenArena
+                ? 'Opens the live arena immediately after creation based on your saved settings.'
+                : 'Returns to the dashboard after creation so you can keep preparing before entering the arena.'}
+            </div>
           </div>
         </section>
       </div>
