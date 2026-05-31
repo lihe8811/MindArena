@@ -13,13 +13,13 @@
 
 ## TODO
 
-- [ ] Implement Rival A and Teammate first for MVP. Leave Rival B behind the same factory interface if time is tight.
-- [ ] Make each agent speak only when called by the orchestrator. Do not implement agent-to-agent handoffs.
-- [ ] Build prompts from role, side, phase, difficulty, active speaker, allowed actions, and role-aware retrieved context.
-- [ ] Keep teammate coaching bounded to allowed prep/coaching windows and prevent hidden opponent strategy leakage.
-- [ ] Attach only approved tools from [@TT](https://github.com/LOLandXD) and [@Oscar](https://github.com/Oscar-The-Great).
-- [ ] Return structured speech or coaching output using shared schemas.
-- [ ] Add tests or test doubles proving each agent factory exposes no auto-handoff behavior.
+- [x] Implement Rival A and Teammate first for MVP. Leave Rival B behind the same factory interface if time is tight.
+- [x] Make each agent speak only when called by the orchestrator. Do not implement agent-to-agent handoffs.
+- [x] Build prompts from role, side, phase, difficulty, active speaker, allowed actions, and role-aware retrieved context.
+- [x] Keep teammate coaching bounded to allowed prep/coaching windows and prevent hidden opponent strategy leakage.
+- [x] Attach only approved tools from [@TT](https://github.com/LOLandXD) and [@Oscar](https://github.com/Oscar-The-Great).
+- [x] Return structured speech or coaching output using shared schemas.
+- [x] Add tests or test doubles proving each agent factory exposes no auto-handoff behavior.
 
 ## Suggested Verification
 
