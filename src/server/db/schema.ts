@@ -11,7 +11,19 @@ import {
   timestamp,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
-import { vector } from 'drizzle-orm/pg-core/columns/vector_extension/vector';
+import { customType } from 'drizzle-orm/pg-core/columns/custom';
+
+const vector = customType<{ data: number[]; driverData: string }>({
+  dataType: (config: { dimensions: number }) => `vector(${config.dimensions})`,
+  toDriver: (value: number[]) => JSON.stringify(value),
+  fromDriver: (value: string) => {
+    try {
+      return JSON.parse(value) as number[];
+    } catch {
+      return [];
+    }
+  },
+});
 
 export const debateSide = pgEnum('debate_side', ['Proponent', 'Opponent']);
 export const debateStatus = pgEnum('debate_status', ['Ready', 'In Progress', 'Completed']);

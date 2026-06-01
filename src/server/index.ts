@@ -1,7 +1,6 @@
 import express from 'express';
 import multer from 'multer';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { Request, Response } from 'express';
 import { isValidEmailAddress } from './auth/email';
 import { sendVerificationCodeEmail } from './auth/emailVerification';
@@ -25,7 +24,7 @@ import {
   requireUserFromToken,
   updateUserSettings,
   verifyUserEmail,
-} from './stores/appStore';
+} from './stores/appStore.ts';
 import {
   createKnowledgeEntry,
   createKnowledgeFromFile,
@@ -34,11 +33,9 @@ import {
   listKnowledgeDocuments,
   reindexKnowledgeDocument,
   searchKnowledgeBase,
-} from './stores/knowledgeBaseStore';
+} from './stores/knowledgeBaseStore.ts';
+import { RoundOrchestrator } from './orchestration/roundOrchestrator.ts';
 import type { AppBootstrap } from '@/shared/types';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = Number(process.env.PORT ?? 3001);
@@ -48,6 +45,7 @@ const upload = multer({
     fileSize: 8 * 1024 * 1024,
   },
 });
+const distPath = path.join(import.meta.dir, '../../dist');
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 app.use(express.json());
@@ -610,7 +608,7 @@ app.post('/api/knowledge-base/:documentId/reindex', (req, res) => {
   }
 });
 
-app.delete('/api/knowledge-base/:documentId', (req, res) => {
+app.post('/api/knowledge-base/:documentId', (req, res) => {
   const user = requireAuth(req, res);
   if (!user) return;
 
@@ -658,7 +656,7 @@ app.post('/api/debates', (req, res) => {
   );
 });
 
-app.post('/api/debates/current/messages', (req, res) => {
+app.post('/api/debates/current/messages', async (req, res) => {
   const user = requireAuth(req, res);
   if (!user) return;
 
@@ -669,13 +667,13 @@ app.post('/api/debates/current/messages', (req, res) => {
   }
 
   try {
-    res.json(appendDebateMessage(user.id, user.name, content));
+    const updatedDebate = await RoundOrchestrator.processTurn(user.id, content);
+    res.json(updatedDebate);
   } catch (error) {
-    res.status(404).send(error instanceof Error ? error.message : 'No active debate.');
+    res.status(500).send(error instanceof Error ? error.message : 'Error processing debate turn.');
   }
 });
 
-const distPath = path.join(__dirname, '../../dist');
 app.use(express.static(distPath));
 
 app.get('*', (_req, res) => {
