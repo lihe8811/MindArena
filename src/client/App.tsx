@@ -9,9 +9,12 @@ import { Performance } from './pages/Performance';
 import {
   createDebate,
   getBootstrap,
+  getNotifications,
+  getSettings,
   login,
   register,
   logout,
+  markNotificationsRead,
   sendDebateMessage,
 } from './lib/api';
 import type { AppBootstrap, View } from '@/shared/types';
@@ -147,6 +150,39 @@ function App() {
     }
   };
 
+  const handleOpenSettings = async () => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const { settings } = await getSettings();
+      setNotice(`Settings loaded for ${settings.displayName}.`);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to load settings.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleOpenNotifications = async () => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const data = await getNotifications();
+      const unread = data.notifications.filter((notification) => !notification.read).length;
+      setNotice(`You have ${unread} unread notification(s).`);
+      await markNotificationsRead();
+      await refreshApp();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to load notifications.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const filteredHistory = useMemo(() => {
     if (!appData) return [];
     if (!searchQuery.trim()) return appData.history;
@@ -242,6 +278,12 @@ function App() {
           user={appData.session.user}
           onSearch={setSearchQuery}
           onToggleSidebar={() => setMobileSidebarOpen((open) => !open)}
+          onNotificationClick={() => {
+            void handleOpenNotifications();
+          }}
+          onSettingsClick={() => {
+            void handleOpenSettings();
+          }}
         />
         
         <main className="flex-1 mt-14 px-6 py-8 overflow-y-auto">

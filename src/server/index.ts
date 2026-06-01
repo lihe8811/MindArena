@@ -501,6 +501,34 @@ app.put('/api/settings', (req, res) => {
   }
 });
 
+app.get('/api/notifications', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  const completedCount = listUserHistory(user.id).filter((item) => item.status !== 'In Progress').length;
+  const notifications = completedCount > 0
+    ? [
+        {
+          id: 'debate-progress',
+          type: 'info',
+          title: 'Debate progress',
+          message: `You have ${completedCount} completed debate(s). Keep up the practice.`,
+          read: false,
+          createdAt: new Date().toISOString(),
+        },
+      ]
+    : [];
+
+  res.json({ notifications });
+});
+
+app.put('/api/notifications/read', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  res.json({ ok: true });
+});
+
 app.get('/api/knowledge-base', (req, res) => {
   const user = requireAuth(req, res);
   if (!user) return;

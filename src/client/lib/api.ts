@@ -3,6 +3,7 @@ import type {
   AppBootstrap,
   AuthResponse,
   DebateSetup,
+  UserSettings,
 } from '@/shared/types';
 
 const AUTH_TOKEN_KEY = 'mindarena.auth.token';
@@ -92,5 +93,28 @@ export function sendDebateMessage(content: string) {
   return request<ActiveDebate>('/api/debates/current/messages', {
     method: 'POST',
     body: JSON.stringify({ content }),
+  });
+}
+
+export function getSettings() {
+  return request<{ settings: UserSettings }>('/api/settings');
+}
+
+export function getNotifications() {
+  return request<{
+    notifications: Array<{
+      id: string;
+      type: string;
+      title: string;
+      message: string;
+      read: boolean;
+      createdAt: string;
+    }>;
+  }>('/api/notifications');
+}
+
+export function markNotificationsRead() {
+  return request<{ ok: true }>('/api/notifications/read', {
+    method: 'PUT',
   });
 }

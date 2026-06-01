@@ -102,7 +102,7 @@ function ensureStoreFile() {
   }
 }
 
-function loadStore() {
+export function loadStore() {
   ensureStoreFile();
   const store = JSON.parse(fs.readFileSync(storePath, 'utf8')) as AppStoreShape;
   store.users = store.users.map((user) => ({
