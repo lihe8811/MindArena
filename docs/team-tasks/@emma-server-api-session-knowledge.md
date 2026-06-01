@@ -11,14 +11,14 @@
 
 ## TODO
 
-- Split existing session, bootstrap, health, and knowledge-base endpoints out of `src/server/index.ts` into Express routers.
-- Keep `src/server/index.ts` focused on Express app setup, JSON middleware, upload middleware, route mounting, static assets, and listen.
-- Preserve existing JSON-backed auth/session/debate persistence in `src/server/stores/appStore.ts` until the repository migration is ready.
-- Preserve existing JSON-backed knowledge storage and indexing in `src/server/stores/knowledgeBaseStore.ts` until [@TT](https://github.com/LOLandXD) extracts reusable retrieval logic.
-- Define stable shared types for sessions, users, dashboard data, history, performance, knowledge documents, and bootstrap payloads.
-- Keep current API behavior backward-compatible for [@Lawrence](https://github.com/Lawrence-SHSID) while route modules are split.
-- Prepare route and store boundaries so Neon/Drizzle repositories can replace JSON stores one domain at a time.
-- Add small route-level tests or smoke scripts if a Bun-compatible test setup is added.
+- [ ] Split existing session, bootstrap, health, and knowledge-base endpoints out of `src/server/index.ts` into Express routers.
+- [ ] Keep `src/server/index.ts` focused on Express app setup, JSON middleware, upload middleware, route mounting, static assets, and listen.
+- [ ] Preserve existing JSON-backed auth/session/debate persistence in `src/server/stores/appStore.ts` until the repository migration is ready.
+- [ ] Preserve existing JSON-backed knowledge storage and indexing in `src/server/stores/knowledgeBaseStore.ts` until [@TT](https://github.com/LOLandXD) extracts reusable retrieval logic.
+- [ ] Define stable shared types for sessions, users, dashboard data, history, performance, knowledge documents, and bootstrap payloads.
+- [ ] Keep current API behavior backward-compatible for [@Lawrence](https://github.com/Lawrence-SHSID) while route modules are split.
+- [ ] Prepare route and store boundaries so Neon/Drizzle repositories can replace JSON stores one domain at a time.
+- [ ] Add small route-level tests or smoke scripts if a Bun-compatible test setup is added.
 
 ## Suggested Verification
 
