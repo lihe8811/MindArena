@@ -3,9 +3,7 @@ import type {
   AppBootstrap,
   AuthResponse,
   DebateSetup,
-  KnowledgeDocument,
-  KnowledgeDocumentDetail,
-  KnowledgeSearchResponse,
+  UserSettings,
 } from '@/shared/types';
 
 const AUTH_TOKEN_KEY = 'mindarena.auth.token';
@@ -98,83 +96,25 @@ export function sendDebateMessage(content: string) {
   });
 }
 
-export function listKnowledgeBase() {
-  return request<{ documents: KnowledgeDocument[] }>('/api/knowledge-base');
-}
-
-export function getKnowledgeDocument(documentId: string) {
-  return request<KnowledgeDocumentDetail>(`/api/knowledge-base/${documentId}`);
-}
-
-export function createKnowledgeRule(payload: {
-  title: string;
-  category: string;
-  content: string;
-}) {
-  return request<{ document: KnowledgeDocument; documents: KnowledgeDocument[] }>(
-    '/api/knowledge-base/rules',
-    {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    },
-  );
-}
-
-export function uploadKnowledgeFile(payload: {
-  file: File;
-  title?: string;
-  category?: string;
-}) {
-  const formData = new FormData();
-  formData.append('file', payload.file);
-  if (payload.title) formData.append('title', payload.title);
-  if (payload.category) formData.append('category', payload.category);
-
-  return request<{ document: KnowledgeDocument; documents: KnowledgeDocument[] }>(
-    '/api/knowledge-base/upload',
-    {
-      method: 'POST',
-      body: formData,
-    },
-  );
-}
-
-export function searchKnowledge(query: string, limit = 8) {
-  return request<KnowledgeSearchResponse>('/api/knowledge-base/search', {
-    method: 'POST',
-    body: JSON.stringify({ query, limit }),
-  });
-}
-
-export function reindexKnowledgeDocument(documentId: string) {
-  return request<KnowledgeDocumentDetail>(`/api/knowledge-base/${documentId}/reindex`, {
-    method: 'POST',
-  });
-}
-
-export function deleteKnowledgeDocument(documentId: string) {
-  return request<{ documents: KnowledgeDocument[] }>(`/api/knowledge-base/${documentId}`, {
-    method: 'DELETE',
-  });
-}
-
 export function getSettings() {
-  return request<{ email: string; name: string; theme: string; notificationsEnabled: boolean }>('/api/settings');
-}
-
-export function updateSettings(payload: { name?: string; theme?: string; notificationsEnabled?: boolean }) {
-  return request<{ ok: boolean; message: string; settings: { email: string; name: string; theme: string; notificationsEnabled: boolean } }>('/api/settings', {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  });
+  return request<{ settings: UserSettings }>('/api/settings');
 }
 
 export function getNotifications() {
-  return request<{ notifications: Array<{ id: string; type: string; title: string; message: string; read: boolean; createdAt: string }> }>('/api/notifications');
+  return request<{
+    notifications: Array<{
+      id: string;
+      type: string;
+      title: string;
+      message: string;
+      read: boolean;
+      createdAt: string;
+    }>;
+  }>('/api/notifications');
 }
 
 export function markNotificationsRead() {
-  return request<{ ok: boolean }>('/api/notifications/read', {
+  return request<{ ok: true }>('/api/notifications/read', {
     method: 'PUT',
   });
 }

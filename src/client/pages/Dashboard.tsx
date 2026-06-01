@@ -91,7 +91,7 @@ export function Dashboard({ data, user, onStartDebate, onOpenHistory }: Dashboar
         <section className="space-y-6">
           <div className="rounded-2xl border border-primary/20 bg-primary/10 p-6">
             <div className="flex items-center gap-3">
-              <Trophy className="w-5 h-5 text-primary" />
+              <Clock3 className="w-5 h-5 text-primary" />
               <p className="text-sm font-bold text-on-surface">{user?.title ?? 'Debater'}</p>
             </div>
             <p className="mt-3 text-3xl font-black tracking-tight text-on-surface">{user?.streak ?? 0} day streak</p>
@@ -100,7 +100,7 @@ export function Dashboard({ data, user, onStartDebate, onOpenHistory }: Dashboar
 
           <div className="rounded-2xl border border-outline-variant bg-surface-container p-6">
             <div className="flex items-center gap-3">
-              <Clock3 className="w-5 h-5 text-primary" />
+              <Trophy className="w-5 h-5 text-primary" />
               <h3 className="font-bold text-on-surface">Practice Focus</h3>
             </div>
             <div className="mt-4 space-y-3">

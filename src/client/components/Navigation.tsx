@@ -4,9 +4,9 @@ import {
   HelpCircle,
   History,
   Home,
-  Library,
   LogOut,
   Menu,
+  CirclePlay,
   Search,
   Settings,
   Swords,
@@ -56,13 +56,14 @@ function NavContent({
         {navItems.map((route) => {
           const Icon = {
             Home,
+            CirclePlay,
             Swords,
             History,
             BarChart2,
-            Library,
           }[route.icon] || Home;
 
           const isActive = currentView === route.id;
+          const isStartDebate = route.id === 'start-debate';
 
           return (
             <button
@@ -70,12 +71,20 @@ function NavContent({
               onClick={() => onViewChange(route.id)}
               className={cn(
                 'w-full flex items-center gap-3 px-4 py-3 transition-all active:scale-[0.98] font-sans text-sm tracking-tight rounded-lg',
-                isActive
+                isStartDebate
+                  ? isActive
+                    ? 'bg-surface-container-highest text-primary border-r-2 border-primary'
+                    : 'text-secondary hover:bg-surface-container-high/50 hover:text-on-surface'
+                  : isActive
                   ? 'bg-surface-container-highest text-primary border-r-2 border-primary'
                   : 'text-secondary hover:bg-surface-container-high/50 hover:text-on-surface',
               )}
             >
-              <Icon className={cn('w-5 h-5', isActive ? 'fill-primary/10' : '')} />
+              {isStartDebate ? (
+                <CirclePlay className="h-5 w-5" />
+              ) : (
+                <Icon className={cn('w-5 h-5', isActive ? 'fill-primary/10' : '')} />
+              )}
               {route.label}
             </button>
           );

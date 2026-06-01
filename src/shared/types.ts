@@ -4,13 +4,25 @@ export type View =
   | 'start-debate'
   | 'arena'
   | 'history'
-  | 'performance'
-  | 'knowledge-base';
+  | 'performance';
+
+export interface UserSettings {
+  displayName: string;
+  title: string;
+  defaultStance: 'Proponent' | 'Opponent';
+  defaultRigor: number;
+  emailNotifications: boolean;
+  rememberSession: boolean;
+  compactSidebar: boolean;
+  autoOpenArena: boolean;
+  theme: 'system' | 'light' | 'dark';
+}
 
 export interface UserProfile {
   id: string;
   name: string;
   email: string;
+  emailVerified: boolean;
   title: string;
   streak: number;
   createdAt?: string;
@@ -24,6 +36,26 @@ export interface AuthSession {
 
 export interface AuthResponse {
   session: AuthSession;
+}
+
+export interface VerificationChallenge {
+  email: string;
+  expiresAt: string;
+  requiresVerification: true;
+  deliveryMethod?: 'email' | 'dev-log';
+  previewCode?: string;
+}
+
+export interface EmailVerificationResponse {
+  ok: true;
+  email: string;
+  verifiedAt: string;
+}
+
+export interface PasswordResetResponse {
+  ok: true;
+  email: string;
+  resetAt: string;
 }
 
 export interface DashboardStats {
@@ -54,6 +86,7 @@ export interface DashboardData {
 export interface DebateSetup {
   topic: string;
   stance: 'Proponent' | 'Opponent';
+  speakerRole?: DebateParticipantId;
   rigor: number;
   knowledgeDocumentIds?: string[];
 }
@@ -66,10 +99,20 @@ export interface DebateMessage {
   content: string;
 }
 
+export type DebateParticipantId = 'pro1' | 'pro2' | 'con1' | 'con2';
+
+export interface DebateParticipant {
+  id: DebateParticipantId;
+  label: DebateParticipantId;
+  side: 'Proponent' | 'Opponent';
+  speakerOrder: 1 | 2;
+}
+
 export interface ActiveDebate {
   id: string;
   topic: string;
   stance: 'Proponent' | 'Opponent';
+  speakerRole?: DebateParticipantId;
   rigor: number;
   stage: string;
   timerLabel: string;
@@ -79,6 +122,7 @@ export interface ActiveDebate {
   updatedAt: string;
   score?: number;
   knowledgeDocumentIds?: string[];
+  participants?: DebateParticipant[];
 }
 
 export interface HistoryItem {
@@ -158,4 +202,5 @@ export interface AppBootstrap {
   performance: PerformanceData;
   knowledgeBase: KnowledgeDocument[];
   activeDebate: ActiveDebate | null;
+  settings: UserSettings | null;
 }

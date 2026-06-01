@@ -1,44 +1,43 @@
 import express from 'express';
-import multer from 'multer';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { Request, Response } from 'express';
+import { isValidEmailAddress } from './auth/email';
+import { sendVerificationCodeEmail } from './auth/emailVerification';
 import {
   appendDebateMessage,
   buildDashboardForUser,
   buildPerformanceForUser,
+  confirmLoginCode,
   createDebateForUser,
   getActiveDebate,
   getSessionFromToken,
+  getUserSettings,
   listUserHistory,
-  loadStore,
   loginUser,
   logoutSession,
+  requestPasswordReset,
   registerUser,
+  resendLoginCode,
+  resetPasswordWithCode,
+  resendVerificationCode,
   requireUserFromToken,
-} from './stores/appStore';
+  updateUserSettings,
+  verifyUserEmail,
+} from './stores/appStore.ts';
 import {
   createKnowledgeEntry,
-  createKnowledgeFromFile,
   deleteKnowledgeDocument,
   getKnowledgeDocumentDetail,
   listKnowledgeDocuments,
   reindexKnowledgeDocument,
   searchKnowledgeBase,
-} from './stores/knowledgeBaseStore';
+} from './stores/knowledgeBaseStore.ts';
+import { RoundOrchestrator } from './orchestration/roundOrchestrator.ts';
 import type { AppBootstrap } from '@/shared/types';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = Number(process.env.PORT ?? 3001);
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 8 * 1024 * 1024,
-  },
-});
+const distPath = path.join(import.meta.dir, '../../dist');
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 app.use(express.json());
@@ -91,7 +90,7 @@ function buildBootstrap(req: Request): AppBootstrap {
         recentDebates: [],
         recommendations: [
           'Create an account to persist your workspace.',
-          'Upload rules and supporting documents before debating.',
+          'Add rule sets before debating.',
           'Start a debate after your knowledge base is ready.',
         ],
       },
@@ -105,11 +104,12 @@ function buildBootstrap(req: Request): AppBootstrap {
         ],
         skillBalance: [],
         insight: 'Sign in to start tracking your performance.',
-        recommendation: 'Create an account, upload knowledge, then start your first debate.',
+        recommendation: 'Create an account, add rule sets, then start your first debate.',
         milestoneProgress: 0,
       },
       knowledgeBase: [],
       activeDebate: null,
+      settings: null,
     };
   }
 
@@ -120,6 +120,7 @@ function buildBootstrap(req: Request): AppBootstrap {
     performance: buildPerformanceForUser(session.user.id),
     knowledgeBase: listKnowledgeDocuments(session.user.id),
     activeDebate: getActiveDebate(session.user.id),
+    settings: getUserSettings(session.user.id),
   };
 }
 
@@ -140,24 +141,57 @@ app.get('/api/bootstrap', (req, res) => {
   res.json(buildBootstrap(req));
 });
 
-app.post('/api/session/register', (req, res) => {
+app.post('/api/session/register', async (req, res) => {
   const name = String(req.body?.name ?? '').trim();
   const email = String(req.body?.email ?? '').trim();
   const password = String(req.body?.password ?? '');
 
-  if (!email || !password || password.length < 8) {
+  if (!name || !email || !password || password.length < 8) {
     res.status(400).send('Name, email, and a password with at least 8 characters are required.');
     return;
   }
 
+  if (!isValidEmailAddress(email)) {
+    res.status(400).send('Please enter a valid email address.');
+    return;
+  }
+
   try {
-    res.status(201).json(registerUser({ name, email, password }));
+    const verification = registerUser({ name, email, password });
+    let deliveryMethod: 'email' | 'dev-log' = 'email';
+    let previewCode: string | undefined;
+    try {
+      const delivery = await sendVerificationCodeEmail({
+        email: verification.email,
+        code: verification.code,
+        expiresAt: verification.expiresAt,
+        purpose: 'verification',
+      });
+      deliveryMethod = delivery.provider === 'resend' ? 'email' : 'dev-log';
+      previewCode = delivery.previewCode;
+    } catch (deliveryError) {
+      res
+        .status(502)
+        .send(
+          deliveryError instanceof Error
+            ? `Account created, but we could not send the verification email. ${deliveryError.message}`
+            : 'Account created, but we could not send the verification email.',
+        );
+      return;
+    }
+    res.status(201).json({
+      email: verification.email,
+      expiresAt: verification.expiresAt,
+      requiresVerification: true,
+      deliveryMethod,
+      previewCode,
+    });
   } catch (error) {
     res.status(400).send(error instanceof Error ? error.message : 'Unable to register.');
   }
 });
 
-app.post('/api/session/login', (req, res) => {
+app.post('/api/session/login', async (req, res) => {
   const email = String(req.body?.email ?? '').trim();
   const password = String(req.body?.password ?? '');
 
@@ -167,14 +201,331 @@ app.post('/api/session/login', (req, res) => {
   }
 
   try {
-    res.json(loginUser({ email, password }));
+    const challenge = loginUser({ email, password });
+    let deliveryMethod: 'email' | 'dev-log' = 'email';
+    let previewCode: string | undefined;
+    try {
+      const delivery = await sendVerificationCodeEmail({
+        email: challenge.email,
+        code: challenge.code,
+        expiresAt: challenge.expiresAt,
+        purpose: 'login',
+      });
+      deliveryMethod = delivery.provider === 'resend' ? 'email' : 'dev-log';
+      previewCode = delivery.previewCode;
+    } catch (deliveryError) {
+      res
+        .status(502)
+        .send(
+          deliveryError instanceof Error
+            ? `Sign-in code created, but we could not send the email. ${deliveryError.message}`
+            : 'Sign-in code created, but we could not send the email.',
+        );
+      return;
+    }
+
+    res.json({
+      email: challenge.email,
+      expiresAt: challenge.expiresAt,
+      requiresVerification: true,
+      deliveryMethod,
+      previewCode,
+    });
   } catch (error) {
     res.status(401).send(error instanceof Error ? error.message : 'Unable to sign in.');
   }
 });
 
+app.post('/api/session/confirm-login', (req, res) => {
+  const email = String(req.body?.email ?? '').trim();
+  const code = String(req.body?.code ?? '').trim();
+
+  if (!email || !code) {
+    res.status(400).send('Email and sign-in code are required.');
+    return;
+  }
+
+  if (!isValidEmailAddress(email)) {
+    res.status(400).send('Please enter a valid email address.');
+    return;
+  }
+
+  try {
+    res.json(confirmLoginCode({ email, code }));
+  } catch (error) {
+    res.status(401).send(error instanceof Error ? error.message : 'Unable to complete sign in.');
+  }
+});
+
+app.post('/api/session/resend-login-code', async (req, res) => {
+  const email = String(req.body?.email ?? '').trim();
+
+  if (!email) {
+    res.status(400).send('Email is required.');
+    return;
+  }
+
+  if (!isValidEmailAddress(email)) {
+    res.status(400).send('Please enter a valid email address.');
+    return;
+  }
+
+  try {
+    const challenge = resendLoginCode(email);
+    let deliveryMethod: 'email' | 'dev-log' = 'email';
+    let previewCode: string | undefined;
+    try {
+      const delivery = await sendVerificationCodeEmail({
+        email: challenge.email,
+        code: challenge.code,
+        expiresAt: challenge.expiresAt,
+        purpose: 'login',
+      });
+      deliveryMethod = delivery.provider === 'resend' ? 'email' : 'dev-log';
+      previewCode = delivery.previewCode;
+    } catch (deliveryError) {
+      res
+        .status(502)
+        .send(
+          deliveryError instanceof Error
+            ? `A new sign-in code was created, but we could not send the email. ${deliveryError.message}`
+            : 'A new sign-in code was created, but we could not send the email.',
+        );
+      return;
+    }
+
+    res.json({
+      email: challenge.email,
+      expiresAt: challenge.expiresAt,
+      requiresVerification: true,
+      deliveryMethod,
+      previewCode,
+    });
+  } catch (error) {
+    res.status(400).send(error instanceof Error ? error.message : 'Unable to resend sign-in code.');
+  }
+});
+
+app.post('/api/session/verify-email', (req, res) => {
+  const email = String(req.body?.email ?? '').trim();
+  const code = String(req.body?.code ?? '').trim();
+
+  if (!email || !code) {
+    res.status(400).send('Email and verification code are required.');
+    return;
+  }
+
+  if (!isValidEmailAddress(email)) {
+    res.status(400).send('Please enter a valid email address.');
+    return;
+  }
+
+  try {
+    res.json({
+      ok: true,
+      ...verifyUserEmail({ email, code }),
+    });
+  } catch (error) {
+    res.status(400).send(error instanceof Error ? error.message : 'Unable to verify email.');
+  }
+});
+
+app.post('/api/session/resend-verification', async (req, res) => {
+  const email = String(req.body?.email ?? '').trim();
+
+  if (!email) {
+    res.status(400).send('Email is required.');
+    return;
+  }
+
+  if (!isValidEmailAddress(email)) {
+    res.status(400).send('Please enter a valid email address.');
+    return;
+  }
+
+  try {
+    const verification = resendVerificationCode(email);
+    let deliveryMethod: 'email' | 'dev-log' = 'email';
+    let previewCode: string | undefined;
+    try {
+      const delivery = await sendVerificationCodeEmail({
+        email: verification.email,
+        code: verification.code,
+        expiresAt: verification.expiresAt,
+        purpose: 'verification',
+      });
+      deliveryMethod = delivery.provider === 'resend' ? 'email' : 'dev-log';
+      previewCode = delivery.previewCode;
+    } catch (deliveryError) {
+      res
+        .status(502)
+        .send(
+          deliveryError instanceof Error
+            ? `A new code was created, but we could not send the verification email. ${deliveryError.message}`
+            : 'A new code was created, but we could not send the verification email.',
+        );
+      return;
+    }
+    res.json({
+      email: verification.email,
+      expiresAt: verification.expiresAt,
+      requiresVerification: true,
+      deliveryMethod,
+      previewCode,
+    });
+  } catch (error) {
+    res.status(400).send(error instanceof Error ? error.message : 'Unable to resend verification code.');
+  }
+});
+
+app.post('/api/session/request-password-reset', async (req, res) => {
+  const email = String(req.body?.email ?? '').trim();
+
+  if (!email) {
+    res.status(400).send('Email is required.');
+    return;
+  }
+
+  if (!isValidEmailAddress(email)) {
+    res.status(400).send('Please enter a valid email address.');
+    return;
+  }
+
+  try {
+    const reset = requestPasswordReset(email);
+    let deliveryMethod: 'email' | 'dev-log' = 'email';
+    let previewCode: string | undefined;
+    try {
+      const delivery = await sendVerificationCodeEmail({
+        email: reset.email,
+        code: reset.code,
+        expiresAt: reset.expiresAt,
+        purpose: 'password-reset',
+      });
+      deliveryMethod = delivery.provider === 'resend' ? 'email' : 'dev-log';
+      previewCode = delivery.previewCode;
+    } catch (deliveryError) {
+      res
+        .status(502)
+        .send(
+          deliveryError instanceof Error
+            ? `A reset code was created, but we could not send the email. ${deliveryError.message}`
+            : 'A reset code was created, but we could not send the email.',
+        );
+      return;
+    }
+
+    res.json({
+      email: reset.email,
+      expiresAt: reset.expiresAt,
+      requiresVerification: true,
+      deliveryMethod,
+      previewCode,
+    });
+  } catch (error) {
+    res.status(400).send(error instanceof Error ? error.message : 'Unable to request password reset.');
+  }
+});
+
+app.post('/api/session/reset-password', (req, res) => {
+  const email = String(req.body?.email ?? '').trim();
+  const code = String(req.body?.code ?? '').trim();
+  const password = String(req.body?.password ?? '');
+
+  if (!email || !code || !password) {
+    res.status(400).send('Email, reset code, and new password are required.');
+    return;
+  }
+
+  if (!isValidEmailAddress(email)) {
+    res.status(400).send('Please enter a valid email address.');
+    return;
+  }
+
+  if (password.length < 8) {
+    res.status(400).send('New password must be at least 8 characters.');
+    return;
+  }
+
+  try {
+    res.json(resetPasswordWithCode({ email, code, password }));
+  } catch (error) {
+    res.status(400).send(error instanceof Error ? error.message : 'Unable to reset password.');
+  }
+});
+
 app.post('/api/session/logout', (req, res) => {
   logoutSession(getAuthToken(req));
+  res.json({ ok: true });
+});
+
+app.get('/api/settings', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  res.json({
+    settings: getUserSettings(user.id),
+  });
+});
+
+app.put('/api/settings', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  const displayName = String(req.body?.displayName ?? '').trim();
+  const title = String(req.body?.title ?? '').trim();
+
+  if (!displayName || !title) {
+    res.status(400).send('Display name and title are required.');
+    return;
+  }
+
+  try {
+    res.json(
+      updateUserSettings(user.id, {
+        displayName,
+        title,
+        defaultStance: req.body?.defaultStance === 'Opponent' ? 'Opponent' : 'Proponent',
+        defaultRigor: Number(req.body?.defaultRigor ?? 3),
+        emailNotifications: Boolean(req.body?.emailNotifications),
+        rememberSession: Boolean(req.body?.rememberSession),
+        compactSidebar: Boolean(req.body?.compactSidebar),
+        autoOpenArena: Boolean(req.body?.autoOpenArena),
+        theme: ['system', 'light', 'dark'].includes(String(req.body?.theme))
+          ? String(req.body?.theme) as 'system' | 'light' | 'dark'
+          : 'system',
+      }),
+    );
+  } catch (error) {
+    res.status(400).send(error instanceof Error ? error.message : 'Unable to update settings.');
+  }
+});
+
+app.get('/api/notifications', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  const completedCount = listUserHistory(user.id).filter((item) => item.status !== 'In Progress').length;
+  const notifications = completedCount > 0
+    ? [
+        {
+          id: 'debate-progress',
+          type: 'info',
+          title: 'Debate progress',
+          message: `You have ${completedCount} completed debate(s). Keep up the practice.`,
+          read: false,
+          createdAt: new Date().toISOString(),
+        },
+      ]
+    : [];
+
+  res.json({ notifications });
+});
+
+app.put('/api/notifications/read', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
   res.json({ ok: true });
 });
 
@@ -229,34 +580,6 @@ app.post('/api/knowledge-base/rules', (req, res) => {
   }
 });
 
-app.post('/api/knowledge-base/upload', upload.single('file'), async (req, res) => {
-  const user = requireAuth(req, res);
-  if (!user) return;
-
-  if (!req.file) {
-    res.status(400).send('Please upload a file.');
-    return;
-  }
-
-  try {
-    const document = await createKnowledgeFromFile({
-      ownerUserId: user.id,
-      fileName: req.file.originalname,
-      mimeType: req.file.mimetype || 'application/octet-stream',
-      content: req.file.buffer,
-      title: String(req.body?.title ?? ''),
-      category: String(req.body?.category ?? 'Uploaded File'),
-    });
-
-    res.status(201).json({
-      document,
-      documents: listKnowledgeDocuments(user.id),
-    });
-  } catch (error) {
-    res.status(400).send(error instanceof Error ? error.message : 'Failed to process file.');
-  }
-});
-
 app.post('/api/knowledge-base/search', (req, res) => {
   const user = requireAuth(req, res);
   if (!user) return;
@@ -277,7 +600,7 @@ app.post('/api/knowledge-base/:documentId/reindex', (req, res) => {
   }
 });
 
-app.delete('/api/knowledge-base/:documentId', (req, res) => {
+app.post('/api/knowledge-base/:documentId', (req, res) => {
   const user = requireAuth(req, res);
   if (!user) return;
 
@@ -304,7 +627,15 @@ app.post('/api/debates', (req, res) => {
   if (!user) return;
 
   const topic = String(req.body?.topic ?? '').trim();
-  const stance = req.body?.stance === 'Opponent' ? 'Opponent' : 'Proponent';
+  const speakerRole = (['pro1', 'pro2', 'con1', 'con2'] as const).find(
+    (role) => role === req.body?.speakerRole,
+  );
+  const stance =
+    speakerRole === 'con1' || speakerRole === 'con2'
+      ? 'Opponent'
+      : req.body?.stance === 'Opponent'
+        ? 'Opponent'
+        : 'Proponent';
   const rigor = Math.max(1, Math.min(5, Number(req.body?.rigor ?? 3)));
   const knowledgeDocumentIds = Array.isArray(req.body?.knowledgeDocumentIds)
     ? req.body.knowledgeDocumentIds.filter((value: unknown): value is string => typeof value === 'string')
@@ -319,13 +650,14 @@ app.post('/api/debates', (req, res) => {
     createDebateForUser(user.id, {
       topic,
       stance,
+      speakerRole,
       rigor,
       knowledgeDocumentIds,
     }),
   );
 });
 
-app.post('/api/debates/current/messages', (req, res) => {
+app.post('/api/debates/current/messages', async (req, res) => {
   const user = requireAuth(req, res);
   if (!user) return;
 
@@ -336,70 +668,13 @@ app.post('/api/debates/current/messages', (req, res) => {
   }
 
   try {
-    res.json(appendDebateMessage(user.id, user.name, content));
+    const updatedDebate = await RoundOrchestrator.processTurn(user.id, content);
+    res.json(updatedDebate);
   } catch (error) {
-    res.status(404).send(error instanceof Error ? error.message : 'No active debate.');
+    res.status(500).send(error instanceof Error ? error.message : 'Error processing debate turn.');
   }
 });
 
-app.get('/api/settings', (req, res) => {
-  const user = requireAuth(req, res);
-  if (!user) return;
-
-  res.json({
-    email: user.email,
-    name: user.name,
-    theme: 'dark',
-    notificationsEnabled: true,
-  });
-});
-
-app.put('/api/settings', (req, res) => {
-  const user = requireAuth(req, res);
-  if (!user) return;
-
-  const { name, theme, notificationsEnabled } = req.body ?? {};
-
-  res.json({
-    ok: true,
-    message: 'Settings updated.',
-    settings: {
-      email: user.email,
-      name: typeof name === 'string' ? name.trim() : user.name,
-      theme: typeof theme === 'string' ? theme : 'dark',
-      notificationsEnabled: typeof notificationsEnabled === 'boolean' ? notificationsEnabled : true,
-    },
-  });
-});
-
-app.get('/api/notifications', (req, res) => {
-  const user = requireAuth(req, res);
-  if (!user) return;
-
-  const store = loadStore();
-  const debates = store.debates.filter((d) => d.userId === user.id && d.status === 'Completed');
-
-  const notifications = [
-    ...(debates.length > 0
-      ? [{
-          id: 'welcome',
-          type: 'info',
-          title: 'Welcome to MindArena',
-          message: `You have ${debates.length} completed debate(s). Keep up the practice!`,
-          read: false,
-          createdAt: new Date().toISOString(),
-        }]
-      : []),
-  ];
-
-  res.json({ notifications });
-});
-
-app.put('/api/notifications/read', (req, res) => {
-  res.json({ ok: true });
-});
-
-const distPath = path.join(__dirname, '../../dist');
 app.use(express.static(distPath));
 
 app.get('*', (_req, res) => {
