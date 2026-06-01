@@ -89,8 +89,8 @@ Do not import client code from server code. Do not import server code from clien
 - Use `bun:test`.
 - Tests should cover behavior, not implementation details.
 - For new services or repositories, write tests before implementation.
-- Put unit tests under `tests/unit/`.
-- Put cross-module/API tests under `tests/integration/`.
+- Put tests under the matching project component folder in `tests/`, for example `tests/orchestration/`.
+- Cross-module/API tests should live with the coordinating component.
 - Keep tests deterministic. Avoid live network/API calls in normal test runs.
 - If a test requires external services, isolate it behind an explicit script or environment flag.
 
@@ -116,7 +116,9 @@ Do not import client code from server code. Do not import server code from clien
 
 ## Git And PRs
 
-- Work from `main` and create PRs directly back to `main`. Avoid stacked or long-lived feature branches unless the team explicitly agrees.
+- Create a branch for every change and submit it through a pull request. Never push code directly to `main`.
+- Branch from the latest `main` before starting work.
+- Keep branches short-lived and focused on one task or closely related set of changes.
 - Keep commits focused by concern.
 - Do not mix docs, schema changes, UI redesigns, and runtime logic in one commit unless they are inseparable.
 - Do not commit local runtime files such as `.claude/` or generated local JSON store data unless explicitly requested.
