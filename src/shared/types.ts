@@ -6,10 +6,23 @@ export type View =
   | 'history'
   | 'performance';
 
+export interface UserSettings {
+  displayName: string;
+  title: string;
+  defaultStance: 'Proponent' | 'Opponent';
+  defaultRigor: number;
+  emailNotifications: boolean;
+  rememberSession: boolean;
+  compactSidebar: boolean;
+  autoOpenArena: boolean;
+  theme: 'system' | 'light' | 'dark';
+}
+
 export interface UserProfile {
   id: string;
   name: string;
   email: string;
+  emailVerified: boolean;
   title: string;
   streak: number;
   createdAt?: string;
@@ -23,6 +36,26 @@ export interface AuthSession {
 
 export interface AuthResponse {
   session: AuthSession;
+}
+
+export interface VerificationChallenge {
+  email: string;
+  expiresAt: string;
+  requiresVerification: true;
+  deliveryMethod?: 'email' | 'dev-log';
+  previewCode?: string;
+}
+
+export interface EmailVerificationResponse {
+  ok: true;
+  email: string;
+  verifiedAt: string;
+}
+
+export interface PasswordResetResponse {
+  ok: true;
+  email: string;
+  resetAt: string;
 }
 
 export interface DashboardStats {
@@ -55,6 +88,7 @@ export interface DebateSetup {
   stance: 'Proponent' | 'Opponent';
   speakerRole?: DebateParticipantId;
   rigor: number;
+  knowledgeDocumentIds?: string[];
 }
 
 export interface DebateMessage {
@@ -87,6 +121,7 @@ export interface ActiveDebate {
   createdAt: string;
   updatedAt: string;
   score?: number;
+  knowledgeDocumentIds?: string[];
   participants?: DebateParticipant[];
 }
 
@@ -117,10 +152,55 @@ export interface PerformanceData {
   milestoneProgress: number;
 }
 
+export interface KnowledgeDocument {
+  id: string;
+  ownerUserId?: string;
+  title: string;
+  category: string;
+  sourceType: 'rule' | 'file';
+  status: 'Indexed' | 'Processing' | 'Failed';
+  summary: string;
+  chunkCount: number;
+  wordCount: number;
+  createdAt: string;
+  updatedAt?: string;
+  fileName?: string;
+  mimeType?: string;
+}
+
+export interface KnowledgeChunkPreview {
+  id: string;
+  index: number;
+  text: string;
+}
+
+export interface KnowledgeDocumentDetail {
+  document: KnowledgeDocument;
+  chunks: KnowledgeChunkPreview[];
+}
+
+export interface KnowledgeSearchResult {
+  id: string;
+  documentId: string;
+  documentTitle: string;
+  category: string;
+  sourceType: 'rule' | 'file';
+  excerpt: string;
+  score: number;
+}
+
+export interface KnowledgeSearchResponse {
+  query: string;
+  total: number;
+  results: KnowledgeSearchResult[];
+}
+
 export interface AppBootstrap {
   session: AuthSession;
   dashboard: DashboardData;
   history: HistoryItem[];
   performance: PerformanceData;
+  knowledgeBase: KnowledgeDocument[];
   activeDebate: ActiveDebate | null;
+  settings: UserSettings | null;
 }

@@ -2,16 +2,19 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { normalizeEmailAddress } from '../auth/email';
 import type {
   ActiveDebate,
   AuthResponse,
   DashboardData,
   DebateParticipant,
   DebateParticipantId,
+  DebateSetup,
   HistoryItem,
   PerformanceData,
   RecentDebate,
   UserProfile,
+  UserSettings,
 } from '@/shared/types';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -19,9 +22,38 @@ const __dirname = path.dirname(__filename);
 const dataDir = path.join(__dirname, '../../../data');
 const storePath = path.join(dataDir, 'app-store.json');
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+const VERIFICATION_CODE_TTL_MS = 1000 * 60 * 10;
+const VERIFICATION_RESEND_COOLDOWN_MS = 1000 * 60;
+
+interface StoredEmailVerification {
+  codeHash: string;
+  expiresAt: string;
+  requestedAt: string;
+  lastSentAt: string;
+}
+
+interface StoredPasswordReset {
+  codeHash: string;
+  expiresAt: string;
+  requestedAt: string;
+  lastSentAt: string;
+}
+
+interface StoredLoginVerification {
+  codeHash: string;
+  expiresAt: string;
+  requestedAt: string;
+  lastSentAt: string;
+}
 
 interface StoredUser extends UserProfile {
+  settings: UserSettings;
   passwordHash: string;
+  emailVerified: boolean;
+  emailVerifiedAt?: string | null;
+  verification?: StoredEmailVerification | null;
+  passwordReset?: StoredPasswordReset | null;
+  loginVerification?: StoredLoginVerification | null;
 }
 
 interface StoredSession {
@@ -72,7 +104,17 @@ function ensureStoreFile() {
 
 function loadStore() {
   ensureStoreFile();
-  return JSON.parse(fs.readFileSync(storePath, 'utf8')) as AppStoreShape;
+  const store = JSON.parse(fs.readFileSync(storePath, 'utf8')) as AppStoreShape;
+  store.users = store.users.map((user) => ({
+    ...user,
+    settings: user.settings ?? defaultUserSettings(user.name),
+    emailVerified: user.emailVerified ?? true,
+    emailVerifiedAt: user.emailVerifiedAt ?? (user.emailVerified === false ? null : user.createdAt ?? nowIso()),
+    verification: user.verification ?? null,
+    passwordReset: user.passwordReset ?? null,
+    loginVerification: user.loginVerification ?? null,
+  }));
+  return store;
 }
 
 function saveStore(store: AppStoreShape) {
@@ -104,9 +146,39 @@ function verifyPassword(password: string, storedHash: string) {
   return crypto.timingSafeEqual(Buffer.from(derived, 'hex'), Buffer.from(originalHash, 'hex'));
 }
 
+function hashVerificationCode(code: string) {
+  return crypto.createHash('sha256').update(code).digest('hex');
+}
+
+function verifyVerificationCode(code: string, storedHash: string) {
+  const candidate = hashVerificationCode(code);
+  return crypto.timingSafeEqual(Buffer.from(candidate, 'hex'), Buffer.from(storedHash, 'hex'));
+}
+
 function sanitizeUser(user: StoredUser): UserProfile {
-  const { passwordHash: _passwordHash, ...publicUser } = user;
+  const {
+    passwordHash: _passwordHash,
+    settings: _settings,
+    verification: _verification,
+    passwordReset: _passwordReset,
+    loginVerification: _loginVerification,
+    ...publicUser
+  } = user;
   return publicUser;
+}
+
+function defaultUserSettings(userName: string): UserSettings {
+  return {
+    displayName: userName,
+    title: 'Logic Apprentice',
+    defaultStance: 'Proponent',
+    defaultRigor: 3,
+    emailNotifications: true,
+    rememberSession: true,
+    compactSidebar: false,
+    autoOpenArena: true,
+    theme: 'system',
+  };
 }
 
 function createSessionPayload(user: StoredUser, token: string): AuthResponse {
@@ -119,21 +191,87 @@ function createSessionPayload(user: StoredUser, token: string): AuthResponse {
   };
 }
 
+function generateVerificationCode() {
+  return String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+}
+
+function issueVerificationCode(user: StoredUser) {
+  const code = generateVerificationCode();
+  const requestedAt = nowIso();
+  const expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MS).toISOString();
+
+  user.verification = {
+    codeHash: hashVerificationCode(code),
+    expiresAt,
+    requestedAt,
+    lastSentAt: requestedAt,
+  };
+
+  return {
+    email: user.email,
+    expiresAt,
+    code,
+  };
+}
+
+function issuePasswordResetCode(user: StoredUser) {
+  const code = generateVerificationCode();
+  const requestedAt = nowIso();
+  const expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MS).toISOString();
+
+  user.passwordReset = {
+    codeHash: hashVerificationCode(code),
+    expiresAt,
+    requestedAt,
+    lastSentAt: requestedAt,
+  };
+
+  return {
+    email: user.email,
+    expiresAt,
+    code,
+  };
+}
+
+function issueLoginVerificationCode(user: StoredUser) {
+  const code = generateVerificationCode();
+  const requestedAt = nowIso();
+  const expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MS).toISOString();
+
+  user.loginVerification = {
+    codeHash: hashVerificationCode(code),
+    expiresAt,
+    requestedAt,
+    lastSentAt: requestedAt,
+  };
+
+  return {
+    email: user.email,
+    expiresAt,
+    code,
+  };
+}
+
 function cleanupExpiredSessions(store: AppStoreShape) {
   const now = Date.now();
-  const activeSessions = store.sessions.filter((session) => new Date(session.expiresAt).getTime() > now);
-  const removedExpiredSessions = activeSessions.length !== store.sessions.length;
-  store.sessions = activeSessions;
-  return removedExpiredSessions;
+  const originalLength = store.sessions.length;
+  store.sessions = store.sessions.filter((session) => new Date(session.expiresAt).getTime() > now);
+  return store.sessions.length !== originalLength;
 }
 
 export function registerUser(input: { name: string; email: string; password: string }) {
   const store = loadStore();
   cleanupExpiredSessions(store);
 
-  const email = input.email.trim().toLowerCase();
-  if (store.users.some((user) => user.email === email)) {
+  const email = normalizeEmailAddress(input.email);
+  const existingUser = store.users.find((user) => user.email === email);
+
+  if (existingUser?.emailVerified) {
     throw new Error('This email is already registered.');
+  }
+
+  if (existingUser) {
+    throw new Error('This email is already registered but not yet verified. Request a new code to continue.');
   }
 
   const user: StoredUser = {
@@ -143,34 +281,119 @@ export function registerUser(input: { name: string; email: string; password: str
     title: 'Logic Apprentice',
     streak: 1,
     createdAt: nowIso(),
+    settings: defaultUserSettings(input.name.trim() || email.split('@')[0] || 'Debater'),
     passwordHash: hashPassword(input.password),
+    emailVerified: false,
+    emailVerifiedAt: null,
+    verification: null,
+    passwordReset: null,
+    loginVerification: null,
   };
-
-  const token = crypto.randomUUID();
-  const createdAt = nowIso();
-  const session: StoredSession = {
-    token,
-    userId: user.id,
-    createdAt,
-    expiresAt: new Date(Date.now() + SESSION_TTL_MS).toISOString(),
-  };
+  const verification = issueVerificationCode(user);
 
   store.users.push(user);
-  store.sessions.push(session);
   saveStore(store);
 
-  return createSessionPayload(user, token);
+  return verification;
 }
 
-export function loginUser(input: { email: string; password: string }) {
+export function requestPasswordReset(emailInput: string) {
+  const store = loadStore();
+  const email = normalizeEmailAddress(emailInput);
+  const user = store.users.find((entry) => entry.email === email);
+
+  if (!user) {
+    throw new Error('No account was found for that email.');
+  }
+
+  const lastSentAt = user.passwordReset?.lastSentAt
+    ? new Date(user.passwordReset.lastSentAt).getTime()
+    : 0;
+
+  if (Date.now() - lastSentAt < VERIFICATION_RESEND_COOLDOWN_MS) {
+    throw new Error('Please wait a minute before requesting another reset code.');
+  }
+
+  const reset = issuePasswordResetCode(user);
+  saveStore(store);
+  return reset;
+}
+
+export function requestLoginCode(input: { email: string; password: string }) {
   const store = loadStore();
   cleanupExpiredSessions(store);
 
-  const email = input.email.trim().toLowerCase();
+  const email = normalizeEmailAddress(input.email);
   const user = store.users.find((entry) => entry.email === email);
 
   if (!user || !verifyPassword(input.password, user.passwordHash)) {
     throw new Error('Invalid email or password.');
+  }
+
+  const lastSentAt = user.loginVerification?.lastSentAt
+    ? new Date(user.loginVerification.lastSentAt).getTime()
+    : 0;
+
+  if (Date.now() - lastSentAt < VERIFICATION_RESEND_COOLDOWN_MS) {
+    throw new Error('Please wait a minute before requesting another sign-in code.');
+  }
+
+  const challenge = issueLoginVerificationCode(user);
+  saveStore(store);
+  return challenge;
+}
+
+export function resendLoginCode(emailInput: string) {
+  const store = loadStore();
+  const email = normalizeEmailAddress(emailInput);
+  const user = store.users.find((entry) => entry.email === email);
+
+  if (!user) {
+    throw new Error('No account was found for that email.');
+  }
+
+  const lastSentAt = user.loginVerification?.lastSentAt
+    ? new Date(user.loginVerification.lastSentAt).getTime()
+    : 0;
+
+  if (Date.now() - lastSentAt < VERIFICATION_RESEND_COOLDOWN_MS) {
+    throw new Error('Please wait a minute before requesting another sign-in code.');
+  }
+
+  const challenge = issueLoginVerificationCode(user);
+  saveStore(store);
+  return challenge;
+}
+
+export function confirmLoginCode(input: { email: string; code: string }) {
+  const store = loadStore();
+  cleanupExpiredSessions(store);
+
+  const email = normalizeEmailAddress(input.email);
+  const code = input.code.trim();
+  const user = store.users.find((entry) => entry.email === email);
+
+  if (!user) {
+    throw new Error('No account was found for that email.');
+  }
+
+  if (!user.loginVerification) {
+    throw new Error('No sign-in code is active for this email.');
+  }
+
+  if (new Date(user.loginVerification.expiresAt).getTime() < Date.now()) {
+    throw new Error('This sign-in code has expired. Request a new one.');
+  }
+
+  if (!verifyVerificationCode(code, user.loginVerification.codeHash)) {
+    throw new Error('Invalid sign-in code.');
+  }
+
+  user.loginVerification = null;
+  user.verification = null;
+  if (!user.emailVerified) {
+    user.emailVerified = true;
+    user.emailVerifiedAt = nowIso();
   }
 
   const token = crypto.randomUUID();
@@ -183,6 +406,112 @@ export function loginUser(input: { email: string; password: string }) {
   saveStore(store);
 
   return createSessionPayload(user, token);
+}
+
+export function resetPasswordWithCode(input: { email: string; code: string; password: string }) {
+  const store = loadStore();
+  const email = normalizeEmailAddress(input.email);
+  const code = input.code.trim();
+  const user = store.users.find((entry) => entry.email === email);
+
+  if (!user) {
+    throw new Error('No account was found for that email.');
+  }
+
+  if (!user.passwordReset) {
+    throw new Error('No password reset is active for this email.');
+  }
+
+  if (new Date(user.passwordReset.expiresAt).getTime() < Date.now()) {
+    throw new Error('This reset code has expired. Request a new one.');
+  }
+
+  if (!verifyVerificationCode(code, user.passwordReset.codeHash)) {
+    throw new Error('Invalid reset code.');
+  }
+
+  user.passwordHash = hashPassword(input.password);
+  user.passwordReset = null;
+  user.verification = null;
+  if (!user.emailVerified) {
+    user.emailVerified = true;
+    user.emailVerifiedAt = nowIso();
+  }
+  store.sessions = store.sessions.filter((session) => session.userId !== user.id);
+  saveStore(store);
+
+  return {
+    ok: true,
+    email: user.email,
+    resetAt: nowIso(),
+  };
+}
+
+export function resendVerificationCode(emailInput: string) {
+  const store = loadStore();
+  const email = normalizeEmailAddress(emailInput);
+  const user = store.users.find((entry) => entry.email === email);
+
+  if (!user) {
+    throw new Error('No account was found for that email.');
+  }
+
+  if (user.emailVerified) {
+    throw new Error('This email is already verified. Please sign in.');
+  }
+
+  const lastSentAt = user.verification?.lastSentAt ? new Date(user.verification.lastSentAt).getTime() : 0;
+  if (Date.now() - lastSentAt < VERIFICATION_RESEND_COOLDOWN_MS) {
+    throw new Error('Please wait a minute before requesting another verification code.');
+  }
+
+  const verification = issueVerificationCode(user);
+  saveStore(store);
+  return verification;
+}
+
+export function verifyUserEmail(input: { email: string; code: string }) {
+  const store = loadStore();
+  const email = normalizeEmailAddress(input.email);
+  const code = input.code.trim();
+  const user = store.users.find((entry) => entry.email === email);
+
+  if (!user) {
+    throw new Error('No account was found for that email.');
+  }
+
+  if (user.emailVerified) {
+    return {
+      email: user.email,
+      verifiedAt: user.emailVerifiedAt ?? nowIso(),
+    };
+  }
+
+  if (!user.verification) {
+    throw new Error('No verification code is active for this email.');
+  }
+
+  if (new Date(user.verification.expiresAt).getTime() < Date.now()) {
+    throw new Error('This verification code has expired. Request a new one.');
+  }
+
+  if (!verifyVerificationCode(code, user.verification.codeHash)) {
+    throw new Error('Invalid verification code.');
+  }
+
+  user.emailVerified = true;
+  user.emailVerifiedAt = nowIso();
+  user.verification = null;
+  saveStore(store);
+
+  return {
+    email: user.email,
+    verifiedAt: user.emailVerifiedAt,
+  };
+}
+
+export function loginUser(input: { email: string; password: string }) {
+  return requestLoginCode(input);
 }
 
 export function logoutSession(token: string | null) {
@@ -232,6 +561,45 @@ export function requireUserFromToken(token: string | null) {
   return session.user;
 }
 
+function getStoredUserById(userId: string) {
+  return loadStore().users.find((user) => user.id === userId) ?? null;
+}
+
+export function getUserSettings(userId: string) {
+  const user = getStoredUserById(userId);
+  if (!user) {
+    throw new Error('User not found.');
+  }
+  return user.settings;
+}
+
+export function updateUserSettings(
+  userId: string,
+  input: Partial<UserSettings> & Pick<UserSettings, 'displayName' | 'title'>,
+) {
+  const store = loadStore();
+  const user = store.users.find((entry) => entry.id === userId);
+
+  if (!user) {
+    throw new Error('User not found.');
+  }
+
+  user.settings = {
+    ...user.settings,
+    ...input,
+    defaultRigor: Math.max(1, Math.min(5, Number(input.defaultRigor ?? user.settings.defaultRigor))),
+  };
+  user.name = user.settings.displayName.trim() || user.name;
+  user.title = user.settings.title.trim() || user.title;
+
+  saveStore(store);
+
+  return {
+    user: sanitizeUser(user),
+    settings: user.settings,
+  };
+}
+
 function inferDebateStatus(messageCount: number): HistoryItem['status'] {
   if (messageCount >= 8) return 'Victory';
   if (messageCount >= 5) return 'Draw';
@@ -263,75 +631,129 @@ function debateToHistory(debate: StoredDebate): HistoryItem {
     id: debate.id,
     topic: debate.topic,
     subject: debate.domain,
-    date: new Date(debate.createdAt).toISOString().slice(0, 10),
+    date: new Date(debate.createdAt).toLocaleDateString(),
     level: debate.rigor,
     status: computedStatus,
-    score: debate.score ?? inferScore(debate.messages.length),
+    score: debate.score ?? 0,
     opponent: debate.opponent,
     createdAt: debate.createdAt,
   };
 }
 
-export function listUserDebates(userId: string) {
-  return loadStore()
-    .debates.filter((debate) => debate.userId === userId)
-    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
-}
-
-export function listUserHistory(userId: string) {
-  return listUserDebates(userId).map(debateToHistory);
-}
-
-export function getActiveDebate(userId: string): ActiveDebate | null {
-  const debate = listUserDebates(userId).find((entry) => entry.status !== 'Completed');
-  return debate ?? null;
-}
-
-export function createDebateForUser(
-  userId: string,
-  input: {
-    topic: string;
-    stance: 'Proponent' | 'Opponent';
-    speakerRole?: DebateParticipantId;
-    rigor: number;
-  },
-) {
+export function buildDashboardForUser(user: UserProfile): DashboardData {
   const store = loadStore();
+  const userDebates = store.debates.filter((debate) => debate.userId === user.id);
+  const completed = userDebates.filter((debate) => debate.status === 'Completed');
+
+  const averageResponseSeconds = 24;
+  const winCount = completed.filter((debate) => inferDebateStatus(debate.messages.length) === 'Victory').length;
+  const winRate = completed.length > 0 ? Math.round((winCount / completed.length) * 100) : 0;
+
+  const recentDebates = userDebates
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
+    .slice(0, 5)
+    .map(debateToRecent);
+
+  return {
+    heroTitle: `Welcome back, ${user.name}`,
+    heroSubtitle: 'Continue your training where you left off. Every session sharpens your edge.',
+    stats: {
+      logicScore: 84,
+      averageResponseSeconds,
+      winRate,
+      debatesCompleted: completed.length,
+    },
+    recentDebates,
+    recommendations: [
+      'Practice Crossfire timing in your next round.',
+      'Review your last loss for logical fallacies.',
+      'Add curated rule notes for better context.',
+    ],
+  };
+}
+
+export function listUserHistory(userId: string): HistoryItem[] {
+  const store = loadStore();
+  return store.debates
+    .filter((debate) => debate.userId === userId)
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+    .map(debateToHistory);
+}
+
+export function buildPerformanceForUser(userId: string): PerformanceData {
+  const store = loadStore();
+  const completed = store.debates.filter((debate) => debate.userId === userId && debate.status === 'Completed');
+
+  const winCount = completed.filter((debate) => inferDebateStatus(debate.messages.length) === 'Victory').length;
+  const winRate = completed.length > 0 ? Math.round((winCount / completed.length) * 100) : 0;
+
+  return {
+    highlights: [
+      { label: 'Win Rate', value: `${winRate}%`, trend: '+4%' },
+      { label: 'Elo Rating', value: '1420', trend: '+15' },
+      { label: 'Global Rank', value: '#1,204', trend: '-12', isDown: true },
+      { label: 'Avg Response', value: '24.2s', trend: '-1.4s' },
+    ],
+    skillBalance: [
+      { label: 'Logic', value: 85 },
+      { label: 'Rhetoric', value: 72 },
+      { label: 'Evidence', value: 90 },
+      { label: 'Rebuttal', value: 64 },
+      { label: 'Clarity', value: 78 },
+    ],
+    insight:
+      'Your use of evidence remains top-tier, but your rebuttal efficiency is slipping. Focus on faster structure during prep time.',
+    recommendation: 'Join a high-rigor (4+) round to test your rebuttal speed under pressure.',
+    milestoneProgress: 65,
+  };
+}
+
+export function createDebateForUser(userId: string, setup: DebateSetup) {
+  const store = loadStore();
+  const id = randomId('debate');
   const createdAt = nowIso();
-  const speakerRole =
-    input.speakerRole ?? (input.stance === 'Opponent' ? 'con1' : 'pro1');
+  const speakerRole = setup.speakerRole ?? (setup.stance === 'Opponent' ? 'con1' : 'pro1');
   const participant = getParticipant(speakerRole);
+
   const debate: StoredDebate = {
-    id: randomId('debate'),
+    id,
     userId,
-    topic: input.topic,
+    topic: setup.topic,
     stance: participant.side,
     speakerRole: participant.id,
-    rigor: input.rigor,
-    stage: 'Opening Statements',
-    timerLabel: '08:00',
+    rigor: setup.rigor,
+    knowledgeDocumentIds: setup.knowledgeDocumentIds,
+    stage: 'Constructive',
+    timerLabel: '04:00',
     status: 'Ready',
-    createdAt,
-    updatedAt: createdAt,
-    score: undefined,
-    participants: debateParticipants,
-    opponent: 'AI Opponent Pending',
-    domain: 'User Defined',
     messages: [
       {
         id: randomId('msg'),
         role: 'system',
         author: 'Moderator',
         time: nowLabel(new Date(createdAt)),
-        content: `Debate created. You are ${participant.label} on the ${participant.side.toLowerCase()} side for: "${input.topic}".`,
+        content: `Debate created. You are ${participant.label} on the ${participant.side.toLowerCase()} side for: "${setup.topic}".`,
       },
     ],
+    createdAt,
+    updatedAt: createdAt,
+    participants: debateParticipants,
+    opponent: 'Rival AI (Level ' + setup.rigor + ')',
+    domain: 'General Policy',
   };
 
-  store.debates = store.debates.filter((entry) => !(entry.userId === userId && entry.status !== 'Completed'));
   store.debates.push(debate);
   saveStore(store);
   return debate;
+}
+
+export function getActiveDebate(userId: string) {
+  const store = loadStore();
+  const debate = store.debates
+    .filter((entry) => entry.userId === userId && entry.status !== 'Completed')
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))[0];
+
+  return debate || null;
 }
 
 export function appendDebateMessage(userId: string, author: string, content: string) {
@@ -372,63 +794,4 @@ export function appendDebateMessage(userId: string, author: string, content: str
 
   saveStore(store);
   return debate;
-}
-
-export function buildDashboardForUser(user: UserProfile): DashboardData {
-  const debates = listUserDebates(user.id);
-  const completed = debates.filter((debate) => debate.status === 'Completed');
-  const histories = completed.map(debateToHistory);
-  const victories = histories.filter((entry) => entry.status === 'Victory').length;
-  const averageResponseSeconds = debates.length
-    ? Number((12 + debates.reduce((sum, debate) => sum + debate.rigor, 0) / debates.length).toFixed(1))
-    : 0;
-  const winRate = completed.length ? Math.round((victories / completed.length) * 100) : 0;
-
-  return {
-    heroTitle: 'Train arguments that hold up under pressure',
-    heroSubtitle:
-      'Track your debate history, launch new rounds, and practice structured 2v2 argumentation.',
-    stats: {
-      logicScore: histories.length ? Math.round(histories.reduce((sum, item) => sum + item.score, 0) / histories.length) : 0,
-      averageResponseSeconds,
-      winRate,
-      debatesCompleted: completed.length,
-    },
-    recentDebates: debates.slice(0, 5).map(debateToRecent),
-    recommendations: [
-      'Choose the exact 2v2 speaker role before starting a round.',
-      'Keep opening statements concise so rebuttals have more room later.',
-      'Resume unfinished debates from the Arena instead of restarting from scratch.',
-    ],
-  };
-}
-
-export function buildPerformanceForUser(userId: string): PerformanceData {
-  const history = listUserHistory(userId);
-  const averageScore = history.length
-    ? Math.round(history.reduce((sum, item) => sum + item.score, 0) / history.length)
-    : 0;
-
-  return {
-    highlights: [
-      { label: 'Win Rate', value: `${history.length ? Math.round((history.filter((item) => item.status === 'Victory').length / history.length) * 100) : 0}%`, trend: '+0%' },
-      { label: 'Elo Rating', value: String(1200 + averageScore * 4), trend: '+12' },
-      { label: 'Global Rank', value: history.length ? '#842' : '#--', trend: '-0', isDown: true },
-      { label: 'Avg Response', value: history.length ? '13.2s' : '--', trend: '-0.0s' },
-    ],
-    skillBalance: [
-      { label: 'Logical Consistency', value: Math.max(40, averageScore) },
-      { label: 'Rhetorical Flair', value: Math.max(35, averageScore - 8) },
-      { label: 'Evidence Integration', value: Math.max(30, averageScore - 4) },
-      { label: 'Response Countering', value: Math.max(28, averageScore - 12) },
-      { label: 'Emotional Intelligence', value: Math.max(25, averageScore - 10) },
-    ],
-    insight:
-      history.length > 0
-        ? 'Your stored debate history shows the strongest sessions happen when claims are explicit and easy to answer.'
-        : 'No completed debates yet. Finish a few rounds to unlock more reliable performance insights.',
-    recommendation:
-      'Start a new 2v2 debate and keep each turn focused on one claim at a time.',
-    milestoneProgress: Math.min(100, history.length * 15),
-  };
 }
