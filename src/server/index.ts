@@ -1,5 +1,4 @@
 import express from 'express';
-import multer from 'multer';
 import path from 'node:path';
 import type { Request, Response } from 'express';
 import { isValidEmailAddress } from './auth/email';
@@ -27,7 +26,6 @@ import {
 } from './stores/appStore.ts';
 import {
   createKnowledgeEntry,
-  createKnowledgeFromFile,
   deleteKnowledgeDocument,
   getKnowledgeDocumentDetail,
   listKnowledgeDocuments,
@@ -39,12 +37,6 @@ import type { AppBootstrap } from '@/shared/types';
 
 const app = express();
 const port = Number(process.env.PORT ?? 3001);
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 8 * 1024 * 1024,
-  },
-});
 const distPath = path.join(import.meta.dir, '../../dist');
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
@@ -98,7 +90,7 @@ function buildBootstrap(req: Request): AppBootstrap {
         recentDebates: [],
         recommendations: [
           'Create an account to persist your workspace.',
-          'Upload rules and supporting documents before debating.',
+          'Add rule sets before debating.',
           'Start a debate after your knowledge base is ready.',
         ],
       },
@@ -112,7 +104,7 @@ function buildBootstrap(req: Request): AppBootstrap {
         ],
         skillBalance: [],
         insight: 'Sign in to start tracking your performance.',
-        recommendation: 'Create an account, upload knowledge, then start your first debate.',
+        recommendation: 'Create an account, add rule sets, then start your first debate.',
         milestoneProgress: 0,
       },
       knowledgeBase: [],
@@ -560,34 +552,6 @@ app.post('/api/knowledge-base/rules', (req, res) => {
   }
 });
 
-app.post('/api/knowledge-base/upload', upload.single('file'), async (req, res) => {
-  const user = requireAuth(req, res);
-  if (!user) return;
-
-  if (!req.file) {
-    res.status(400).send('Please upload a file.');
-    return;
-  }
-
-  try {
-    const document = await createKnowledgeFromFile({
-      ownerUserId: user.id,
-      fileName: req.file.originalname,
-      mimeType: req.file.mimetype || 'application/octet-stream',
-      content: req.file.buffer,
-      title: String(req.body?.title ?? ''),
-      category: String(req.body?.category ?? 'Uploaded File'),
-    });
-
-    res.status(201).json({
-      document,
-      documents: listKnowledgeDocuments(user.id),
-    });
-  } catch (error) {
-    res.status(400).send(error instanceof Error ? error.message : 'Failed to process file.');
-  }
-});
-
 app.post('/api/knowledge-base/search', (req, res) => {
   const user = requireAuth(req, res);
   if (!user) return;
@@ -635,7 +599,15 @@ app.post('/api/debates', (req, res) => {
   if (!user) return;
 
   const topic = String(req.body?.topic ?? '').trim();
-  const stance = req.body?.stance === 'Opponent' ? 'Opponent' : 'Proponent';
+  const speakerRole = (['pro1', 'pro2', 'con1', 'con2'] as const).find(
+    (role) => role === req.body?.speakerRole,
+  );
+  const stance =
+    speakerRole === 'con1' || speakerRole === 'con2'
+      ? 'Opponent'
+      : req.body?.stance === 'Opponent'
+        ? 'Opponent'
+        : 'Proponent';
   const rigor = Math.max(1, Math.min(5, Number(req.body?.rigor ?? 3)));
   const knowledgeDocumentIds = Array.isArray(req.body?.knowledgeDocumentIds)
     ? req.body.knowledgeDocumentIds.filter((value: unknown): value is string => typeof value === 'string')
@@ -650,6 +622,7 @@ app.post('/api/debates', (req, res) => {
     createDebateForUser(user.id, {
       topic,
       stance,
+      speakerRole,
       rigor,
       knowledgeDocumentIds,
     }),

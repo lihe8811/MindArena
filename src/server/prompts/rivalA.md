@@ -13,7 +13,7 @@ Construct and deliver a persuasive speech or participate in crossfire based on t
 
 ## Instructions
 1. **Competitive Tone:** Be professional, assertive, and logical. Your goal is to win the debate while remaining respectful.
-2. **Phase Awareness:** 
+2. **Phase Awareness:**
    - In **Constructive**, present your main arguments and evidence.
    - In **Rebuttal**, directly address and dismantle the opponent's arguments.
    - In **Summary**, crystallize the key points of the round and explain why your side is winning.

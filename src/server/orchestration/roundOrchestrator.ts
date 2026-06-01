@@ -15,10 +15,10 @@ export class RoundOrchestrator {
     // Note: appendDebateMessage in the current appStore.ts automatically adds a moderator message.
     // For now, we'll let it do that, and then we'll add the AI's actual speech.
     const debate = appendDebateMessage(userId, 'Student', content);
-    
+
     // 2. Gather context for the agent
     const knowledgeContext = await this.getKnowledgeContext(userId, content);
-      
+
     const recentTranscript = debate.messages
       .slice(-5)
       .map(m => `${m.author}: ${m.content}`)
@@ -36,10 +36,10 @@ export class RoundOrchestrator {
     try {
       const agent = await AgentFactory.createAgent('RivalA', agentConfig);
       const result = await run(agent, 'Please provide your rebuttal based on the current debate state.');
-      
+
       // 4. Record AI response
-      const aiSpeech = typeof result.finalOutput === 'string' 
-        ? result.finalOutput 
+      const aiSpeech = typeof result.finalOutput === 'string'
+        ? result.finalOutput
         : JSON.stringify(result.finalOutput);
 
       return appendDebateMessage(userId, 'Rival Agent A', aiSpeech);

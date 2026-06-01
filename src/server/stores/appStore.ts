@@ -7,6 +7,8 @@ import type {
   ActiveDebate,
   AuthResponse,
   DashboardData,
+  DebateParticipant,
+  DebateParticipantId,
   DebateSetup,
   HistoryItem,
   PerformanceData,
@@ -65,6 +67,17 @@ interface StoredDebate extends ActiveDebate {
   userId: string;
   opponent: string;
   domain: string;
+}
+
+const debateParticipants: DebateParticipant[] = [
+  { id: 'pro1', label: 'pro1', side: 'Proponent', speakerOrder: 1 },
+  { id: 'pro2', label: 'pro2', side: 'Proponent', speakerOrder: 2 },
+  { id: 'con1', label: 'con1', side: 'Opponent', speakerOrder: 1 },
+  { id: 'con2', label: 'con2', side: 'Opponent', speakerOrder: 2 },
+];
+
+function getParticipant(role: DebateParticipantId) {
+  return debateParticipants.find((participant) => participant.id === role) ?? debateParticipants[0];
 }
 
 interface AppStoreShape {
@@ -654,7 +667,7 @@ export function buildDashboardForUser(user: UserProfile): DashboardData {
     recommendations: [
       'Practice Crossfire timing in your next round.',
       'Review your last loss for logical fallacies.',
-      'Upload new case study files for better context.',
+      'Add curated rule notes for better context.',
     ],
   };
 }
@@ -699,20 +712,32 @@ export function createDebateForUser(userId: string, setup: DebateSetup) {
   const store = loadStore();
   const id = randomId('debate');
   const createdAt = nowIso();
+  const speakerRole = setup.speakerRole ?? (setup.stance === 'Opponent' ? 'con1' : 'pro1');
+  const participant = getParticipant(speakerRole);
 
   const debate: StoredDebate = {
     id,
     userId,
     topic: setup.topic,
-    stance: setup.stance,
+    stance: participant.side,
+    speakerRole: participant.id,
     rigor: setup.rigor,
     knowledgeDocumentIds: setup.knowledgeDocumentIds,
     stage: 'Constructive',
     timerLabel: '04:00',
     status: 'Ready',
-    messages: [],
+    messages: [
+      {
+        id: randomId('msg'),
+        role: 'system',
+        author: 'Moderator',
+        time: nowLabel(new Date(createdAt)),
+        content: `Debate created. You are ${participant.label} on the ${participant.side.toLowerCase()} side for: "${setup.topic}".`,
+      },
+    ],
     createdAt,
     updatedAt: createdAt,
+    participants: debateParticipants,
     opponent: 'Rival AI (Level ' + setup.rigor + ')',
     domain: 'General Policy',
   };

@@ -20,13 +20,13 @@ function isValidEmailAddress(email: string) {
 
 interface LandingProps {
   onLogin: (email: string, password: string) => Promise<void>;
-  onConfirmLogin: (email: string, code: string) => Promise<void>;
+  onConfirmLogin?: (email: string, code: string) => Promise<void>;
   onRegister: (payload: { name: string; email: string; password: string }) => Promise<void>;
-  onResendLoginVerification: (email: string) => Promise<void>;
-  onVerifyEmail: (email: string, code: string) => Promise<void>;
-  onResendVerification: (email: string) => Promise<void>;
-  onRequestPasswordReset: (email: string) => Promise<void>;
-  onResetPassword: (email: string, code: string, password: string) => Promise<void>;
+  onResendLoginVerification?: (email: string) => Promise<void>;
+  onVerifyEmail?: (email: string, code: string) => Promise<void>;
+  onResendVerification?: (email: string) => Promise<void>;
+  onRequestPasswordReset?: (email: string) => Promise<void>;
+  onResetPassword?: (email: string, code: string, password: string) => Promise<void>;
   loginChallenge?: VerificationChallenge | null;
   verificationChallenge?: VerificationChallenge | null;
   passwordResetChallenge?: VerificationChallenge | null;
@@ -237,6 +237,10 @@ export function Landing({
                   setLocalError('Please enter the 6-digit sign-in code.');
                   return;
                 }
+                if (!onConfirmLogin) {
+                  setLocalError('Sign-in verification is unavailable in this client.');
+                  return;
+                }
                 await onConfirmLogin(email, code);
                 return;
               }
@@ -245,10 +249,18 @@ export function Landing({
                   setLocalError('Please enter the 6-digit verification code.');
                   return;
                 }
+                if (!onVerifyEmail) {
+                  setLocalError('Email verification is unavailable in this client.');
+                  return;
+                }
                 await onVerifyEmail(email, code);
                 return;
               }
               if (mode === 'forgot') {
+                if (!onRequestPasswordReset) {
+                  setLocalError('Password reset is unavailable in this client.');
+                  return;
+                }
                 await onRequestPasswordReset(email);
                 return;
               }
@@ -263,6 +275,10 @@ export function Landing({
                 }
                 if (password !== confirmPassword) {
                   setLocalError('Passcode confirmation does not match.');
+                  return;
+                }
+                if (!onResetPassword) {
+                  setLocalError('Password reset is unavailable in this client.');
                   return;
                 }
                 await onResetPassword(email, code, password);
@@ -361,8 +377,8 @@ export function Landing({
                       </button>
                     ) : null}
                   </div>
-                  <input 
-                    type="password" 
+                  <input
+                    type="password"
                     placeholder={mode === 'reset' ? 'Choose a new passcode' : '••••••••'}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
@@ -445,15 +461,19 @@ export function Landing({
                       setLocalError('Please enter a valid email address.');
                       return;
                     }
-                    if (mode === 'login-verify') {
+                    if (mode === 'login-verify' && onResendLoginVerification) {
                       await onResendLoginVerification(email);
                       return;
                     }
-                    if (mode === 'verify') {
+                    if (mode === 'verify' && onResendVerification) {
                       await onResendVerification(email);
                       return;
                     }
-                    await onRequestPasswordReset(email);
+                    if (onRequestPasswordReset) {
+                      await onRequestPasswordReset(email);
+                      return;
+                    }
+                    setLocalError('Code resend is unavailable in this client.');
                   }}
                   className="text-primary font-bold hover:underline"
                 >

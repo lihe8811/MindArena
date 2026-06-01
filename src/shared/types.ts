@@ -4,9 +4,7 @@ export type View =
   | 'start-debate'
   | 'arena'
   | 'history'
-  | 'performance'
-  | 'knowledge-base'
-  | 'settings';
+  | 'performance';
 
 export interface UserSettings {
   displayName: string;
@@ -88,6 +86,7 @@ export interface DashboardData {
 export interface DebateSetup {
   topic: string;
   stance: 'Proponent' | 'Opponent';
+  speakerRole?: DebateParticipantId;
   rigor: number;
   knowledgeDocumentIds?: string[];
 }
@@ -100,10 +99,20 @@ export interface DebateMessage {
   content: string;
 }
 
+export type DebateParticipantId = 'pro1' | 'pro2' | 'con1' | 'con2';
+
+export interface DebateParticipant {
+  id: DebateParticipantId;
+  label: DebateParticipantId;
+  side: 'Proponent' | 'Opponent';
+  speakerOrder: 1 | 2;
+}
+
 export interface ActiveDebate {
   id: string;
   topic: string;
   stance: 'Proponent' | 'Opponent';
+  speakerRole?: DebateParticipantId;
   rigor: number;
   stage: string;
   timerLabel: string;
@@ -113,6 +122,7 @@ export interface ActiveDebate {
   updatedAt: string;
   score?: number;
   knowledgeDocumentIds?: string[];
+  participants?: DebateParticipant[];
 }
 
 export interface HistoryItem {
