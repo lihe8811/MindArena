@@ -756,7 +756,17 @@ export function getActiveDebate(userId: string) {
   return debate || null;
 }
 
-export function appendDebateMessage(userId: string, author: string, content: string) {
+interface AppendDebateMessageOptions {
+  role?: 'system' | 'user' | 'assistant';
+  moderatorNote?: string | false;
+}
+
+export function appendDebateMessage(
+  userId: string,
+  author: string,
+  content: string,
+  options: AppendDebateMessageOptions = {},
+) {
   const store = loadStore();
   const debate = [...store.debates]
     .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
@@ -766,22 +776,32 @@ export function appendDebateMessage(userId: string, author: string, content: str
     throw new Error('No active debate.');
   }
 
+  const inferredRole = options.role ?? (author.includes('Agent') ? 'assistant' : 'user');
+
   debate.messages.push({
     id: randomId('msg'),
-    role: 'user',
+    role: inferredRole,
     author,
     time: nowLabel(),
     content,
   });
 
-  debate.messages.push({
-    id: randomId('msg'),
-    role: 'system',
-    author: 'Moderator',
-    time: nowLabel(),
-    content:
-      'Argument recorded. AI rebuttal is still pending, but this transcript is now persisted and can be resumed later.',
-  });
+  const moderatorNote =
+    options.moderatorNote === undefined
+      ? inferredRole === 'assistant'
+        ? false
+        : 'Argument recorded. Orchestration is retrieving context and preparing the next agent response.'
+      : options.moderatorNote;
+
+  if (moderatorNote) {
+    debate.messages.push({
+      id: randomId('msg'),
+      role: 'system',
+      author: 'Moderator',
+      time: nowLabel(),
+      content: moderatorNote,
+    });
+  }
 
   debate.status = 'In Progress';
   debate.updatedAt = nowIso();

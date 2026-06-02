@@ -3,7 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import {
+  appendDebateMessage,
   confirmLoginCode,
+  createDebateForUser,
   getSessionFromToken,
   loginUser,
   registerUser,
@@ -50,5 +52,37 @@ describe('app store sessions', () => {
 
     expect(session.authenticated).toBe(true);
     expect(writes.filter((file) => file === storePath)).toEqual([]);
+  });
+});
+
+describe('app store debate transcript', () => {
+  test('records rival agent output as an assistant message for arena rendering', () => {
+    const email = `debate-agent-${crypto.randomUUID()}@example.com`;
+    const registered = registerUser({
+      name: 'Debate Agent',
+      email,
+      password: 'correct horse battery staple',
+    });
+    verifyUserEmail({ email, code: registered.code });
+    const loginChallenge = loginUser({ email, password: 'correct horse battery staple' });
+    const auth = confirmLoginCode({ email, code: loginChallenge.code });
+    const userId = auth.session.user?.id;
+
+    expect(userId).toBeString();
+
+    createDebateForUser(userId!, {
+      topic: 'Resolved: mock debates should show orchestration.',
+      stance: 'Proponent',
+      rigor: 3,
+      knowledgeDocumentIds: [],
+    });
+
+    const debate = appendDebateMessage(userId!, 'Rival Agent A', 'Here is the dummy agent rebuttal.');
+
+    expect(debate.messages.at(-1)).toMatchObject({
+      role: 'assistant',
+      author: 'Rival Agent A',
+      content: 'Here is the dummy agent rebuttal.',
+    });
   });
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Send, Timer, UserCircle2 } from 'lucide-react';
+import { Bot, Route, Send, Timer, UserCircle2 } from 'lucide-react';
 import type { ActiveDebate, DebateParticipant } from '@/shared/types';
 
 interface ArenaProps {
@@ -127,11 +127,11 @@ export function Arena({ debate, onSendMessage, isSending }: ArenaProps) {
         </div>
         <div className="rounded-2xl border border-outline-variant bg-surface-container-low p-4">
           <div className="flex items-center gap-2 text-sm font-bold text-on-surface">
-            <Timer className="w-4 h-4 text-primary" />
-            AI Ready Later
+            <Route className="w-4 h-4 text-primary" />
+            Mock Workflow
           </div>
-          <p className="mt-2 text-sm text-secondary">
-            The app now persists your arguments, speaker role, and moderator notes. AI rebuttal logic can plug into the same thread later.
+          <p className="mt-2 text-sm leading-6 text-secondary">
+            Send an argument to record your turn, show the orchestration handoff, and receive a Rival Agent A mock rebuttal in the same transcript.
           </p>
         </div>
       </section>
@@ -150,17 +150,41 @@ export function Arena({ debate, onSendMessage, isSending }: ArenaProps) {
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {debate.messages.map((message) => {
             const isUser = message.role === 'user';
+            const isAssistant = message.role === 'assistant';
+            const iconClass = isUser ? 'text-primary' : isAssistant ? 'text-on-primary' : 'text-secondary';
             return (
               <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-2xl rounded-2xl border px-4 py-3 ${isUser ? 'bg-primary/10 border-primary/20' : 'bg-surface-container-low border-outline-variant'}`}>
+                <div
+                  className={`max-w-2xl rounded-2xl border px-4 py-3 ${
+                    isUser
+                      ? 'bg-primary/10 border-primary/20'
+                      : isAssistant
+                        ? 'bg-primary text-on-primary border-primary'
+                        : 'bg-surface-container-low border-outline-variant'
+                  }`}
+                >
                   <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em]">
-                    <UserCircle2 className={`w-3.5 h-3.5 ${isUser ? 'text-primary' : 'text-secondary'}`} />
-                    <span className={isUser ? 'text-primary font-black' : 'text-secondary font-black'}>
+                    {isAssistant ? (
+                      <Bot className={`w-3.5 h-3.5 ${iconClass}`} />
+                    ) : (
+                      <UserCircle2 className={`w-3.5 h-3.5 ${iconClass}`} />
+                    )}
+                    <span
+                      className={
+                        isUser
+                          ? 'text-primary font-black'
+                          : isAssistant
+                            ? 'text-on-primary font-black'
+                            : 'text-secondary font-black'
+                      }
+                    >
                       {message.author}
                     </span>
-                    <span className="text-secondary">{message.time}</span>
+                    <span className={isAssistant ? 'text-on-primary/75' : 'text-secondary'}>{message.time}</span>
                   </div>
-                  <p className="text-sm leading-6 text-on-surface">{message.content}</p>
+                  <p className={`whitespace-pre-line text-sm leading-6 ${isAssistant ? 'text-on-primary' : 'text-on-surface'}`}>
+                    {message.content}
+                  </p>
                 </div>
               </div>
             );

@@ -93,7 +93,7 @@ export interface DebateSetup {
 
 export interface DebateMessage {
   id: string;
-  role: 'system' | 'user';
+  role: 'system' | 'user' | 'assistant';
   author: string;
   time: string;
   content: string;
