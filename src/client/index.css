@@ -103,6 +103,16 @@
   }
 }
 
+@keyframes urgent-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@keyframes spin-once {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 @layer utilities {
   .bg-grid {
     background-image: radial-gradient(circle at center, var(--color-outline-variant) 1px, transparent 1px);
@@ -111,5 +121,20 @@
 
   .glass {
     @apply bg-surface/80 backdrop-blur-md border border-outline-variant;
+  }
+
+  .animate-urgent {
+    animation: urgent-pulse 0.85s ease-in-out infinite;
+  }
+
+  .animate-spin-once {
+    animation: spin-once 0.35s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-urgent,
+    .animate-spin-once {
+      animation: none;
+    }
   }
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bot, Route, Send, Timer, UserCircle2 } from 'lucide-react';
+import { Bot, Route, Send, Swords, Timer, UserCircle2 } from 'lucide-react';
 import type { ActiveDebate, DebateParticipant } from '@/shared/types';
 
 interface ArenaProps {
@@ -43,6 +43,12 @@ export function Arena({ debate, onSendMessage, isSending }: ArenaProps) {
     return formatTimer(totalSeconds - elapsedSeconds);
   }, [debate, isDebateOpen, now]);
 
+  const isUrgent = useMemo(() => {
+    if (!isDebateOpen) return false;
+    const [mm = '0', ss = '0'] = timerDisplay.split(':');
+    return Number(mm) * 60 + Number(ss) <= 30;
+  }, [timerDisplay, isDebateOpen]);
+
   useEffect(() => {
     if (!isDebateOpen) return;
 
@@ -53,9 +59,12 @@ export function Arena({ debate, onSendMessage, isSending }: ArenaProps) {
 
   if (!debate) {
     return (
-      <div className="rounded-3xl border border-outline-variant bg-surface-container p-10 text-center">
-        <h2 className="text-2xl font-bold text-on-surface">No active debate</h2>
-        <p className="mt-3 text-secondary">Create a debate from the setup page to begin tracking arguments here.</p>
+      <div className="rounded-3xl border border-outline-variant bg-surface-container p-12 text-center">
+        <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto">
+          <Swords className="w-6 h-6 text-primary" />
+        </div>
+        <h2 className="mt-4 text-2xl font-bold text-on-surface">Arena is empty</h2>
+        <p className="mt-3 text-secondary max-w-xs mx-auto">Head to Start Debate to pick a topic and open a round. Your live transcript will show up here.</p>
       </div>
     );
   }
@@ -84,7 +93,9 @@ export function Arena({ debate, onSendMessage, isSending }: ArenaProps) {
           </div>
           <div className="flex items-center justify-between">
             <span className="text-secondary">Timer</span>
-            <span className="font-bold text-on-surface">{timerDisplay}</span>
+            <span className={isUrgent ? 'font-bold text-error animate-urgent' : 'font-bold text-on-surface'}>
+              {timerDisplay}
+            </span>
           </div>
         </div>
         <div className="rounded-2xl border border-outline-variant bg-surface-container-low p-4">

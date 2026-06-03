@@ -1,5 +1,12 @@
 import type { HistoryItem } from '@/shared/types';
 
+function getStatusStyle(status: string): string {
+  const s = status.toLowerCase();
+  if (s === 'victory' || s === 'win' || s === 'won') return 'border-tertiary/40 bg-tertiary/10 text-tertiary';
+  if (s === 'defeat' || s === 'loss' || s === 'lost') return 'border-error/30 bg-error/10 text-error';
+  return 'border-outline-variant text-on-surface';
+}
+
 interface HistoryProps {
   items: HistoryItem[];
 }
@@ -31,8 +38,9 @@ export function History({ items }: HistoryProps) {
         </div>
         <div className="divide-y divide-outline-variant">
           {items.length === 0 ? (
-            <div className="px-6 py-10 text-sm text-secondary">
-              No debate history yet. Completed debates will appear here automatically.
+            <div className="px-6 py-12 text-center">
+              <p className="text-sm font-semibold text-on-surface">The record book is empty</p>
+              <p className="mt-2 text-sm text-secondary">Finish a debate and your result lands here with your score and outcome.</p>
             </div>
           ) : (
             items.map((item) => (
@@ -42,7 +50,7 @@ export function History({ items }: HistoryProps) {
                   <p className="text-sm text-secondary">{item.subject}</p>
                 </div>
                 <p className="text-sm text-secondary">LVL {item.level}</p>
-                <span className="w-fit rounded-full border border-outline-variant px-3 py-1 text-xs font-bold text-on-surface">
+                <span className={`w-fit rounded-full border px-3 py-1 text-xs font-bold ${getStatusStyle(item.status)}`}>
                   {item.status}
                 </span>
                 <p className="font-bold text-on-surface">{item.score}/100</p>

@@ -1,4 +1,30 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+
+const LOADING_MESSAGES = [
+  'Loading your practice records...',
+  'Syncing debate history...',
+  'Reading your logic scores...',
+  'Getting the arena ready...',
+  'Checking your streak...',
+];
+
+function LoadingScreen() {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setIdx((i) => (i + 1) % LOADING_MESSAGES.length), 1600);
+    return () => window.clearInterval(id);
+  }, []);
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="text-center">
+        <p className="text-2xl font-black text-primary tracking-tight">MindArena</p>
+        <p key={idx} className="mt-3 text-sm text-secondary animate-in fade-in duration-500">
+          {LOADING_MESSAGES[idx]}
+        </p>
+      </div>
+    </div>
+  );
+}
 import { Sidebar, TopBar } from './components/Navigation';
 import { Landing } from './pages/Landing';
 import { Dashboard } from './pages/Dashboard';
@@ -54,6 +80,9 @@ function App() {
         setLoading(false);
       }
     };
+
+    console.log('%cMindArena', 'color:oklch(52% 0.19 62);font-size:22px;font-weight:900;font-family:Geist,sans-serif');
+    console.log('%cYou found the debug console. The whole debate engine is plain TypeScript — nothing magic.', 'color:#888;font-size:12px');
 
     void bootstrap();
   }, [refreshApp]);
@@ -196,14 +225,7 @@ function App() {
   }, [appData, searchQuery]);
 
   if (loading || !appData) {
-    return (
-      <div className="min-h-screen bg-background text-on-background flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-2xl font-black text-primary tracking-tight">MindArena</p>
-          <p className="mt-3 text-secondary">Loading workspace...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   const renderView = () => {

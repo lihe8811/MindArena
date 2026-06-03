@@ -71,8 +71,9 @@ export function Dashboard({ data, user, onStartDebate, onOpenHistory }: Dashboar
           </div>
           <div className="divide-y divide-outline-variant">
             {data.recentDebates.length === 0 ? (
-              <div className="px-6 py-10 text-sm text-secondary">
-                No debates yet. Start your first round after adding a few rules or source files.
+              <div className="px-6 py-12 text-center">
+                <p className="text-sm font-semibold text-on-surface">No debates on record</p>
+                <p className="mt-2 text-sm text-secondary">Set up your first topic, pick a stance, and your results appear here.</p>
               </div>
             ) : (
               data.recentDebates.map((debate) => (
