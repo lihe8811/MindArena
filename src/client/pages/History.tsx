@@ -22,7 +22,7 @@ export function History({ items }: HistoryProps) {
       </div>
 
       <div className="rounded-3xl border border-outline-variant bg-surface-container overflow-hidden">
-        <div className="grid grid-cols-[2fr_120px_140px_120px_140px] gap-4 px-6 py-4 border-b border-outline-variant text-[10px] uppercase tracking-[0.2em] text-secondary font-bold">
+        <div className="grid grid-cols-[2fr_120px_140px_120px_140px] gap-4 px-6 py-4 border-b border-outline-variant text-xs font-semibold text-secondary">
           <span>Topic</span>
           <span>Level</span>
           <span>Status</span>
@@ -68,7 +68,7 @@ function SummaryCard({
   return (
     <div className="rounded-2xl border border-outline-variant bg-surface-container px-6 py-4 min-w-32">
       <p className={`text-3xl font-black ${tone === 'success' ? 'text-tertiary' : 'text-error'}`}>{value}</p>
-      <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-secondary font-bold">{label}</p>
+      <p className="mt-1 text-xs font-medium text-secondary">{label}</p>
     </div>
   );
 }

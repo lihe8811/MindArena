@@ -45,7 +45,7 @@ export function Settings({ settings, isSubmitting, onSave }: SettingsProps) {
           </div>
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
             <label className="space-y-2">
-              <span className="text-xs font-bold uppercase tracking-[0.2em] text-secondary">Display Name</span>
+              <span className="text-sm font-semibold text-secondary">Display Name</span>
               <input
                 value={form.displayName}
                 onChange={(event) => setForm({ ...form, displayName: event.target.value })}
@@ -53,7 +53,7 @@ export function Settings({ settings, isSubmitting, onSave }: SettingsProps) {
               />
             </label>
             <label className="space-y-2">
-              <span className="text-xs font-bold uppercase tracking-[0.2em] text-secondary">Title</span>
+              <span className="text-sm font-semibold text-secondary">Title</span>
               <input
                 value={form.title}
                 onChange={(event) => setForm({ ...form, title: event.target.value })}
@@ -70,7 +70,7 @@ export function Settings({ settings, isSubmitting, onSave }: SettingsProps) {
           </div>
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-secondary mb-3">Default Stance</p>
+              <p className="text-sm font-semibold text-secondary mb-3">Default Stance</p>
               <div className="grid grid-cols-2 gap-3">
                 {(['Proponent', 'Opponent'] as const).map((option) => (
                   <button
@@ -89,7 +89,7 @@ export function Settings({ settings, isSubmitting, onSave }: SettingsProps) {
               </div>
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-secondary mb-3">Default Rigor</p>
+              <p className="text-sm font-semibold text-secondary mb-3">Default Rigor</p>
               <input
                 type="range"
                 min="1"

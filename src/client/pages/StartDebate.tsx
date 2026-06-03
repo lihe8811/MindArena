@@ -49,7 +49,7 @@ export function StartDebate({ onCreateDebate, isSubmitting }: StartDebateProps) 
           }}
         >
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-secondary mb-3">Debate Topic</label>
+            <label className="block text-sm font-semibold text-secondary mb-3">Debate Topic</label>
             <textarea
               value={topic}
               onChange={(event) => setTopic(event.target.value)}
@@ -68,7 +68,7 @@ export function StartDebate({ onCreateDebate, isSubmitting }: StartDebateProps) 
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary mb-3">Your Role</p>
+              <p className="text-sm font-semibold text-secondary mb-3">Your Role</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-2 gap-3">
                 {speakerRoles.map((option) => (
                   <button
@@ -82,7 +82,7 @@ export function StartDebate({ onCreateDebate, isSubmitting }: StartDebateProps) 
                     }`}
                   >
                     <span className="block">{option.label}</span>
-                    <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.16em] text-secondary">
+                    <span className="mt-1 block text-xs text-secondary">
                       {option.side === 'Proponent' ? 'Pro' : 'Con'}
                     </span>
                   </button>
@@ -91,7 +91,7 @@ export function StartDebate({ onCreateDebate, isSubmitting }: StartDebateProps) 
             </div>
 
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary mb-3">Rigor</p>
+              <p className="text-sm font-semibold text-secondary mb-3">Rigor</p>
               <input
                 type="range"
                 min="1"

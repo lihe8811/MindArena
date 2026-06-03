@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-03T00:00:00Z",
+  "title": "Design System: MindArena",
+  "extensions": {
+    "colorMeta": {
+      "violet-flow":      { "role": "primary",   "displayName": "Violet Flow",      "canonical": "oklch(73% 0.21 293)",  "tonalRamp": ["#0f0820", "#1d1040", "#2e1860", "#472489", "#6332b2", "#8358d4", "#a78bfa", "#c4b0fb", "#e2d8ff"] },
+      "violet-deep":      { "role": "primary",   "displayName": "Violet Deep",      "canonical": "oklch(55% 0.26 293)",  "tonalRamp": ["#0a0520", "#180b3f", "#27145e", "#3d1e89", "#5726b5", "#7031d4", "#8c4df5", "#aa7bf8", "#ccb0fb"] },
+      "emerald-signal":   { "role": "tertiary",  "displayName": "Emerald Signal",   "canonical": "oklch(78% 0.17 160)",  "tonalRamp": ["#011f15", "#022e1f", "#054532", "#0a6648", "#0d8060", "#18a87c", "#34d399", "#6ee7b7", "#a7f3d0"] },
+      "emerald-container":{ "role": "tertiary",  "displayName": "Emerald Container","canonical": "oklch(38% 0.12 160)",  "tonalRamp": ["#01150d", "#022018", "#033325", "#054a38", "#086150", "#0d8068", "#18a882", "#34d399", "#6ee7b7"] },
+      "void-base":        { "role": "neutral",   "displayName": "Void Base",        "canonical": "oklch(10% 0.005 280)", "tonalRamp": ["#09090b", "#111113", "#1a1a1d", "#242428", "#2e2e33", "#38383e", "#424249", "#636370", "#a1a1aa"] },
+      "surface-low":      { "role": "neutral",   "displayName": "Surface Low",      "canonical": "oklch(11% 0.005 280)", "tonalRamp": ["#09090b", "#0f0f12", "#141417", "#1a1a1d", "#222226", "#2c2c30", "#363639", "#505056", "#8e8e96"] },
+      "surface-mid":      { "role": "neutral",   "displayName": "Surface Mid",      "canonical": "oklch(12% 0.005 280)", "tonalRamp": ["#09090b", "#0f0f12", "#121215", "#18181b", "#1e1e22", "#28282d", "#323238", "#4e4e54", "#8a8a92"] },
+      "surface-high":     { "role": "neutral",   "displayName": "Surface High",     "canonical": "oklch(13% 0.005 280)", "tonalRamp": ["#09090b", "#0f0f12", "#121215", "#18181b", "#1e1e22", "#28282e", "#323238", "#4d4d54", "#8a8a92"] },
+      "surface-peak":     { "role": "neutral",   "displayName": "Surface Peak",     "canonical": "oklch(15% 0.005 280)", "tonalRamp": ["#09090b", "#111114", "#161619", "#1e1e22", "#25252a", "#2f2f35", "#3a3a40", "#555560", "#919199"] },
+      "ink-full":         { "role": "neutral",   "displayName": "Ink Full",         "canonical": "oklch(98% 0.000 0)",   "tonalRamp": ["#181818", "#2c2c2c", "#424242", "#5c5c5c", "#787878", "#989898", "#b8b8b8", "#d8d8d8", "#fafafa"] },
+      "ink-dim":          { "role": "neutral",   "displayName": "Ink Dim",          "canonical": "oklch(65% 0.006 280)", "tonalRamp": ["#1a1a1e", "#262629", "#323236", "#3e3e43", "#4e4e54", "#636370", "#7d7d85", "#9a9aa2", "#c4c4cc"] },
+      "edge-soft":        { "role": "neutral",   "displayName": "Edge Soft",        "canonical": "oklch(38% 0.006 280)", "tonalRamp": ["#18181b", "#1e1e22", "#272730", "#30303a", "#3d3d45", "#474751", "#52525b", "#6b6b75", "#909099"] },
+      "edge-hard":        { "role": "neutral",   "displayName": "Edge Hard",        "canonical": "oklch(20% 0.006 280)", "tonalRamp": ["#111113", "#16161a", "#1c1c21", "#222228", "#27272a", "#2f2f35", "#38383f", "#505058", "#858590"] },
+      "signal-error":     { "role": "neutral",   "displayName": "Signal Error",     "canonical": "oklch(62% 0.22 27)",   "tonalRamp": ["#1a0000", "#380505", "#590a0a", "#7a1010", "#9a1c1c", "#c22828", "#ef4444", "#f87171", "#fca5a5"] }
+    },
+    "typographyMeta": {
+      "display":  { "displayName": "Display",  "purpose": "Landing hero headline, dashboard hero title. One per page. text-wrap: balance required." },
+      "headline": { "displayName": "Headline", "purpose": "Major section titles, dialog titles." },
+      "title":    { "displayName": "Title",    "purpose": "Card headings, panel labels, sidebar section names." },
+      "body":     { "displayName": "Body",     "purpose": "Debate transcript, explanations, description copy. Max 70ch." },
+      "label":    { "displayName": "Label",    "purpose": "Button text, input labels, nav items. Sentence case only." },
+      "mono":     { "displayName": "Mono",     "purpose": "Live debate timer, Elo score readouts. Tabular numerals." }
+    },
+    "shadows": [
+      { "name": "button-hover-glow", "value": "0 4px 24px rgba(167, 139, 250, 0.2)", "purpose": "Ambient glow on primary button hover only. The only shadow in the system." }
+    ],
+    "motion": [
+      { "name": "ease-standard",    "value": "cubic-bezier(0.4, 0, 0.2, 1)",  "purpose": "Default easing for state transitions (color, opacity, border)." },
+      { "name": "ease-out-quart",   "value": "cubic-bezier(0.25, 1, 0.5, 1)", "purpose": "Entrance animations (slide-in, fade-in). Decelerates to a stop." },
+      { "name": "duration-fast",    "value": "150ms", "purpose": "Color and border state changes." },
+      { "name": "duration-standard","value": "300ms", "purpose": "Slide/fade entrance animations." },
+      { "name": "duration-slow",    "value": "500ms", "purpose": "Page-level fade-in transitions." }
+    ],
+    "breakpoints": [
+      { "name": "sm",  "value": "640px"  },
+      { "name": "md",  "value": "768px"  },
+      { "name": "lg",  "value": "1024px" },
+      { "name": "xl",  "value": "1280px" },
+      { "name": "2xl", "value": "1536px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single primary call-to-action. Violet Fill, sentence-case label, 48px height.",
+      "html": "<button class=\"ds-btn-primary\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M13 2L3 14h9l-1 8 10-12h-9l1-8z\"/></svg>Start Debate</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #a78bfa; color: #0a0012; font-family: Geist, ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; font-weight: 700; height: 48px; padding: 0 24px; border: none; border-radius: 8px; cursor: pointer; transition: filter 150ms cubic-bezier(0.4,0,0.2,1), transform 100ms cubic-bezier(0.4,0,0.2,1), box-shadow 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-primary:hover { filter: brightness(1.1); box-shadow: 0 4px 24px rgba(167,139,250,0.2); } .ds-btn-primary:active { transform: scale(0.98); } .ds-btn-primary:focus-visible { outline: 2px solid #a78bfa; outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary action. Border-only, transparent background, same size as primary.",
+      "html": "<button class=\"ds-btn-ghost\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 5v14M5 12l7 7 7-7\"/></svg>Review History</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: transparent; color: #fafafa; font-family: Geist, ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; height: 48px; padding: 0 24px; border: 1px solid #52525b; border-radius: 12px; cursor: pointer; transition: background 150ms cubic-bezier(0.4,0,0.2,1), border-color 150ms; } .ds-btn-ghost:hover { background: #18181b; border-color: #71717a; } .ds-btn-ghost:active { transform: scale(0.98); } .ds-btn-ghost:focus-visible { outline: 2px solid #a78bfa; outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Standard form input. Surface Mid background, Edge Hard border, Violet Flow focus ring.",
+      "html": "<div class=\"ds-input-wrap\"><label class=\"ds-input-label\">Email address</label><input class=\"ds-input\" type=\"email\" placeholder=\"name@school.edu\" /></div>",
+      "css": ".ds-input-wrap { display: flex; flex-direction: column; gap: 8px; } .ds-input-label { font-family: Geist, ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; color: #fafafa; } .ds-input { width: 100%; height: 48px; background: #121215; color: #fafafa; font-family: Geist, ui-sans-serif, system-ui, sans-serif; font-size: 1rem; font-weight: 400; padding: 0 16px; border: 1px solid #27272a; border-radius: 8px; outline: none; transition: border-color 150ms cubic-bezier(0.4,0,0.2,1), box-shadow 150ms; } .ds-input::placeholder { color: rgba(161,161,170,0.3); } .ds-input:focus { border-color: #a78bfa; box-shadow: 0 0 0 3px rgba(167,139,250,0.15); } .ds-input:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Standard content container. Surface Mid, 16px radius, 24px padding, Edge Hard border.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">Rhetoric Analysis</h3><p class=\"ds-card-body\">Real-time tone and logic scoring for every claim made during a live debate round.</p></div>",
+      "css": ".ds-card { background: #121215; border: 1px solid #27272a; border-radius: 16px; padding: 24px; } .ds-card-title { font-family: Geist, ui-sans-serif, system-ui, sans-serif; font-size: 1.125rem; font-weight: 700; color: #fafafa; margin: 0 0 8px; } .ds-card-body { font-family: Geist, ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; font-weight: 400; color: #a1a1aa; line-height: 1.6; margin: 0; }"
+    },
+    {
+      "name": "Stat Cell",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Number + label stat display. Used in the 4-stat dashboard grid. Label in sentence case (not all-caps eyebrow).",
+      "html": "<div class=\"ds-stat\"><p class=\"ds-stat-label\">Logic score</p><p class=\"ds-stat-value\">82%</p><p class=\"ds-stat-trend ds-stat-trend--up\">+4 this week</p></div>",
+      "css": ".ds-stat { background: #121215; border: 1px solid #27272a; border-radius: 16px; padding: 20px; } .ds-stat-label { font-family: Geist, ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; color: #a1a1aa; margin: 0 0 12px; } .ds-stat-value { font-family: Geist, ui-sans-serif, system-ui, sans-serif; font-size: 2rem; font-weight: 900; color: #fafafa; letter-spacing: -0.02em; margin: 0 0 8px; } .ds-stat-trend { font-family: Geist, ui-sans-serif, system-ui, sans-serif; font-size: 0.75rem; font-weight: 700; margin: 0; } .ds-stat-trend--up { color: #34d399; } .ds-stat-trend--down { color: #ef4444; }"
+    },
+    {
+      "name": "Live Status Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Pill badge for live/active states. The only sanctioned use of the Meta type style (≤4 words, all-caps).",
+      "html": "<span class=\"ds-chip-live\"><span class=\"ds-chip-dot\"></span>Live Arena</span>",
+      "css": ".ds-chip-live { display: inline-flex; align-items: center; gap: 6px; background: rgba(167,139,250,0.1); color: #a78bfa; font-family: Geist, ui-sans-serif, system-ui, sans-serif; font-size: 0.625rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 12px; border-radius: 9999px; border: 1px solid rgba(167,139,250,0.2); } .ds-chip-dot { width: 6px; height: 6px; background: #a78bfa; border-radius: 9999px; animation: ds-pulse 2s ease-in-out infinite; } @keyframes ds-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } } @media (prefers-reduced-motion: reduce) { .ds-chip-dot { animation: none; } }"
+    },
+    {
+      "name": "Navigation Item",
+      "kind": "nav",
+      "refersTo": "button-ghost",
+      "description": "Sidebar navigation link. Active state uses Surface High bg + 2px left Violet Flow indicator.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/><polyline points=\"9 22 9 12 15 12 15 22\"/></svg>Dashboard</a><a class=\"ds-nav-item ds-nav-item--active\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z\"/><path d=\"M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z\"/><path d=\"M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z\"/><path d=\"M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z\"/><path d=\"M14 14.5c0-.83.67-1.5 1.5-1.5H20.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z\"/><path d=\"M15.5 19H14v1.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5-.67-1.5-1.5-1.5z\"/><path d=\"M10 9.5C10 8.67 9.33 8 8.5 8H3.5C2.67 8 2 8.67 2 9.5S2.67 11 3.5 11h5c.83 0 1.5-.67 1.5-1.5z\"/><path d=\"M8.5 5H10V3.5C10 2.67 9.33 2 8.5 2S7 2.67 7 3.5 7.67 5 8.5 5z\"/></svg>Arena</a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 2px; padding: 0 12px; } .ds-nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; font-family: Geist, ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; color: #a1a1aa; text-decoration: none; transition: background 150ms cubic-bezier(0.4,0,0.2,1), color 150ms; position: relative; } .ds-nav-item:hover { background: #18181b; color: #fafafa; } .ds-nav-item--active { background: #18181b; color: #fafafa; } .ds-nav-item--active::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 2px; height: 60%; background: #a78bfa; border-radius: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Debate Dojo",
+    "overview": "MindArena is a disciplined practice space. The interface is not a stage; it is a training room. A student arrives to repeat, refine, and leave slightly sharper than when they entered. Every surface communicates that: dark ground with room to breathe, a single accent that signals action without demanding attention, type that stays out of the way of the argument being made.\n\nThe system rejects four failure modes by name: cartoon gamification (mascots, overkill streaks, confetti floods that hollow out achievement), esports aggression (neon RGB, angular dark chrome, terminal-hacker theater), corporate SaaS coldness (zinc-on-white, productivity-tool blankness), and academic institution stiffness (beige, formal serif, university portal energy). None of these serve a student who wants to get better at thinking.\n\nThe 'Dojo' metaphor earns its place in the behavior of the components, not just the copy. Progress feedback is honest and specific. Hierarchy is communicated through weight, not decoration. Motion confirms action rather than entertaining the eye. The primary accent color appears at most 10% of any screen surface; its scarcity is its signal value.",
+    "keyCharacteristics": [
+      "Near-black zinc ground (Void Base) with a 5-step tonal surface ramp for depth",
+      "Geist variable (100-900) as the single typeface; weight contrast does all the hierarchy work",
+      "Violet Flow as the single named accent; Emerald Signal reserved for correct/success only",
+      "Generous internal padding on all containers; components breathe rather than pack",
+      "No box-shadows at rest; depth is tonal, not cast",
+      "Motion: responsive to interaction, never choreographed for spectacle",
+      "Eyebrow labels and numbered section scaffolding are prohibited"
+    ],
+    "rules": [
+      { "name": "The One Voice Rule",          "body": "Violet Flow is used on ≤10% of any screen surface. Every additional violet element dilutes it to nothing. Protect its rarity; every dilution costs a user a navigation cue.",                          "section": "colors" },
+      { "name": "The Signal Color Fence",       "body": "Emerald Signal is reserved for correct / success / affirmative states. Using it decoratively breaks its semantic value.",                                                                              "section": "colors" },
+      { "name": "The No Eyebrow Rule",          "body": "The text-[10px] uppercase tracking-widest pattern is an absolute ban. Section identity is carried by Title weight contrast and layout hierarchy.",                                                      "section": "typography" },
+      { "name": "The Weight Ladder Rule",       "body": "Adjacent elements in a visual hierarchy must differ by at least two steps on the 900→800→700→600→400 ladder.",                                                                                        "section": "typography" },
+      { "name": "The Flat-By-Default Rule",     "body": "Surfaces are flat at rest. The ambient glow on button hover is the only shadow in the system.",                                                                                                       "section": "elevation" },
+      { "name": "The Ramp Reads Depth Rule",    "body": "Do not skip ramp steps. Surface Peak on Void Base without intermediate layers looks floating, not elevated.",                                                                                         "section": "elevation" }
+    ],
+    "dos": [
+      "Do use the 5-step surface ramp (Void Base → Surface Low → Surface Mid → Surface High → Surface Peak) for every depth relationship. Never skip steps or go out of order.",
+      "Do reserve Violet Flow for primary buttons, active states, focused inputs, and progress indicators. Check that no more than 10% of any screen surface carries the violet.",
+      "Do use Emerald Signal exclusively for correct / success / affirmative states.",
+      "Do use Geist weight contrast (400 body / 700 title / 800-900 headline+display) as the sole hierarchy tool.",
+      "Do give cards ≥24px internal padding and soft 1px borders (Edge Hard). Let them breathe.",
+      "Do caption the Debate Stage timer in Geist Mono. Monospace numerals prevent layout shift on countdown.",
+      "Do add text-wrap: balance to all Display and Headline elements.",
+      "Do honor prefers-reduced-motion on all animations.",
+      "Do meet WCAG AA: 4.5:1 for body text, 3:1 for large text."
+    ],
+    "donts": [
+      "Don't use the eyebrow pattern — text-[10px] uppercase tracking-widest — as a section label on any page.",
+      "Don't add numbered section markers (01/02/03) as structural scaffolding.",
+      "Don't use border-left greater than 2px as a colored accent stripe.",
+      "Don't use gradient text (background-clip: text + a gradient). Violet Flow is solid.",
+      "Don't use box-shadow on cards, panels, or page surfaces at rest.",
+      "Don't use 'leverage', 'seamless', 'next-generation', 'supercharge', or any member of the banned buzzword family in copy.",
+      "Don't add cartoon mascots, confetti explosions, or dopamine-loop animations.",
+      "Don't use esports aesthetics: no neon RGB, no aggressive angular shapes.",
+      "Don't default to corporate SaaS coldness (gray-on-white, productivity-tool blankness).",
+      "Don't use a second typeface alongside Geist.",
+      "Don't display stats with an all-caps eyebrow label above the number."
+    ]
+  }
+}

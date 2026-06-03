@@ -47,7 +47,6 @@ function NavContent({
           </div>
           <div>
             <p className="text-xl font-black text-on-surface leading-none tracking-tighter">MindArena</p>
-            <p className="text-[10px] uppercase tracking-widest text-primary font-bold mt-1">Persistent MVP</p>
           </div>
         </div>
       </div>
@@ -73,10 +72,10 @@ function NavContent({
                 'w-full flex items-center gap-3 px-4 py-3 transition-all active:scale-[0.98] font-sans text-sm tracking-tight rounded-lg',
                 isStartDebate
                   ? isActive
-                    ? 'bg-surface-container-highest text-primary border-r-2 border-primary'
+                    ? 'bg-primary/10 text-primary'
                     : 'text-secondary hover:bg-surface-container-high/50 hover:text-on-surface'
                   : isActive
-                  ? 'bg-surface-container-highest text-primary border-r-2 border-primary'
+                  ? 'bg-primary/10 text-primary'
                   : 'text-secondary hover:bg-surface-container-high/50 hover:text-on-surface',
               )}
             >
@@ -93,7 +92,7 @@ function NavContent({
 
       <div className="p-4 border-t border-outline-variant space-y-3">
         <div className="px-3 py-3 rounded-xl bg-surface-container border border-outline-variant">
-          <p className="text-[10px] uppercase tracking-widest text-secondary font-bold">Signed in as</p>
+          <p className="text-xs font-medium text-secondary">Signed in as</p>
           <p className="text-sm font-bold text-on-surface mt-2 truncate">{user?.name ?? 'Guest'}</p>
           <p className="text-xs text-secondary truncate">{user?.email ?? 'Not connected'}</p>
         </div>
@@ -190,7 +189,7 @@ export function TopBar({ onSearch, title, subtitle, user, onToggleSidebar, onNot
         </button>
         <div className="hidden md:block">
           <h1 className="text-lg font-bold tracking-tighter text-on-surface">{title}</h1>
-          {subtitle ? <p className="text-[10px] uppercase tracking-widest text-secondary">{subtitle}</p> : null}
+          {subtitle ? <p className="text-xs text-secondary">{subtitle}</p> : null}
         </div>
         <div className="relative group">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary w-4 h-4 transition-colors group-focus-within:text-primary" />

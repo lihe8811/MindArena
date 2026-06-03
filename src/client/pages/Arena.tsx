@@ -64,8 +64,7 @@ export function Arena({ debate, onSendMessage, isSending }: ArenaProps) {
     <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-6 h-[calc(100vh-110px)]">
       <section className="rounded-3xl border border-outline-variant bg-surface-container p-6 space-y-6">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-black">Live Arena</p>
-          <h2 className="mt-3 text-2xl font-bold text-on-surface">{debate.topic}</h2>
+          <h2 className="text-2xl font-bold text-on-surface">{debate.topic}</h2>
           <p className="mt-2 text-sm text-secondary">
             2v2 round: you are {debate.speakerRole ?? (debate.stance === 'Opponent' ? 'con1' : 'pro1')}
           </p>
@@ -91,7 +90,7 @@ export function Arena({ debate, onSendMessage, isSending }: ArenaProps) {
         <div className="rounded-2xl border border-outline-variant bg-surface-container-low p-4">
           <div className="flex items-center justify-between">
             <p className="text-sm font-bold text-on-surface">Teams</p>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">2v2</span>
+            <span className="text-xs font-bold text-primary">2v2</span>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-3">
             {participants.map((participant) => {
@@ -112,7 +111,7 @@ export function Arena({ debate, onSendMessage, isSending }: ArenaProps) {
                     <span className={`text-sm font-black ${isUserSide ? 'text-primary' : 'text-on-surface'}`}>
                       {participant.label}
                     </span>
-                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-secondary">
+                    <span className="text-xs text-secondary">
                       Speaker {participant.speakerOrder}
                     </span>
                   </div>
@@ -163,7 +162,7 @@ export function Arena({ debate, onSendMessage, isSending }: ArenaProps) {
                         : 'bg-surface-container-low border-outline-variant'
                   }`}
                 >
-                  <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em]">
+                  <div className="mb-2 flex items-center gap-2 text-xs">
                     {isAssistant ? (
                       <Bot className={`w-3.5 h-3.5 ${iconClass}`} />
                     ) : (

@@ -199,7 +199,7 @@ function App() {
     return (
       <div className="min-h-screen bg-background text-on-background flex items-center justify-center">
         <div className="text-center">
-          <p className="text-sm uppercase tracking-[0.3em] text-primary font-black">MindArena</p>
+          <p className="text-2xl font-black text-primary tracking-tight">MindArena</p>
           <p className="mt-3 text-secondary">Loading workspace...</p>
         </div>
       </div>
@@ -301,9 +301,9 @@ function App() {
         </main>
 
         <footer className="px-6 py-4 border-t border-outline-variant flex justify-between items-center bg-surface-container-low/30">
-          <p className="text-[10px] uppercase font-bold tracking-widest text-secondary/40">MindArena MVP Workspace</p>
+          <p className="text-xs text-secondary/40">MindArena</p>
           <div className="flex gap-4">
-            <span className="flex items-center gap-2 text-[10px] font-bold text-tertiary uppercase tracking-widest">
+            <span className="flex items-center gap-2 text-xs font-semibold text-tertiary">
               <span className="w-1 h-1 rounded-full bg-tertiary" /> System Optimal
             </span>
           </div>
