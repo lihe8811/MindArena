@@ -54,7 +54,7 @@ The app runs on [http://localhost:3000](http://localhost:3000).
 
 | Variable | Description |
 |---|---|
-| `APP_URL` | Deployment URL for self-referential links and OAuth callbacks |
+| `APP_URL` | Deployment URL for self-referential links |
 | `DATABASE_URL` | Neon Postgres connection string used by Drizzle and the server |
 
 ## Neon Database

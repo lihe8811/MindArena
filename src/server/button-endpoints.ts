@@ -70,8 +70,6 @@
  * ├──────────────────────────────────┬──────────────────────────────────────────┤
  * │  Sign In                         │  ✅ COMPLETE → POST /api/session/login    │
  * │  Create Account                  │  ✅ COMPLETE → POST /api/session/register │
- * │  Google Sign-In                  │  ⚠️ STUB — needs OAuth provider           │
- * │  GitHub Sign-In                  │  ⚠️ STUB — needs OAuth provider           │
  * │  Forgot Key                      │  ⚠️ STUB — needs email service            │
  * │  Toggle Login/Register           │  ✅ COMPLETE — client state toggle        │
  * └──────────────────────────────────┴──────────────────────────────────────────┘
