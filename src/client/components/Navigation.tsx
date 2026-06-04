@@ -10,9 +10,9 @@ import {
   Search,
   Settings,
   Swords,
-  Terminal,
   X,
 } from 'lucide-react';
+import { MindArenaLogo } from '@/client/components/MindArenaLogo';
 import { cn } from '@/client/lib/utils';
 import { ROUTES, type Route } from '@/shared/constants';
 import type { UserProfile, View } from '@/shared/types';
@@ -42,9 +42,7 @@ function NavContent({
     <>
       <div className="p-6 mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-center transition-colors hover:bg-primary/20 hover:border-primary/30">
-            <Terminal className="w-5 h-5 text-primary" />
-          </div>
+          <MindArenaLogo />
           <div>
             <p className="text-xl font-black text-on-surface leading-none tracking-tighter">MindArena</p>
           </div>
@@ -141,7 +139,10 @@ export function Sidebar({
           />
           <aside className="absolute left-0 top-0 bottom-0 flex w-72 flex-col bg-surface-container-lowest border-r border-outline-variant">
             <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant">
-              <p className="text-lg font-black text-on-surface">MindArena</p>
+              <div className="flex items-center gap-3">
+                <MindArenaLogo className="h-9 w-9" markClassName="h-5 w-5" />
+                <p className="text-lg font-black text-on-surface">MindArena</p>
+              </div>
               <button
                 type="button"
                 onClick={onCloseMobile}

@@ -107,7 +107,7 @@ export function loadStore() {
   const store = JSON.parse(fs.readFileSync(storePath, 'utf8')) as AppStoreShape;
   store.users = store.users.map((user) => ({
     ...user,
-    settings: user.settings ?? defaultUserSettings(user.name),
+    settings: normalizeUserSettings(user.settings, user.name),
     emailVerified: user.emailVerified ?? true,
     emailVerifiedAt: user.emailVerifiedAt ?? (user.emailVerified === false ? null : user.createdAt ?? nowIso()),
     verification: user.verification ?? null,
@@ -177,7 +177,20 @@ function defaultUserSettings(userName: string): UserSettings {
     rememberSession: true,
     compactSidebar: false,
     autoOpenArena: true,
-    theme: 'system',
+  };
+}
+
+function normalizeUserSettings(settings: Partial<UserSettings> | null | undefined, userName: string): UserSettings {
+  const defaults = defaultUserSettings(userName);
+  return {
+    displayName: String(settings?.displayName ?? defaults.displayName),
+    title: String(settings?.title ?? defaults.title),
+    defaultStance: settings?.defaultStance === 'Opponent' ? 'Opponent' : defaults.defaultStance,
+    defaultRigor: Math.max(1, Math.min(5, Number(settings?.defaultRigor ?? defaults.defaultRigor))),
+    emailNotifications: settings?.emailNotifications ?? defaults.emailNotifications,
+    rememberSession: settings?.rememberSession ?? defaults.rememberSession,
+    compactSidebar: settings?.compactSidebar ?? defaults.compactSidebar,
+    autoOpenArena: settings?.autoOpenArena ?? defaults.autoOpenArena,
   };
 }
 
@@ -570,7 +583,7 @@ export function getUserSettings(userId: string) {
   if (!user) {
     throw new Error('User not found.');
   }
-  return user.settings;
+  return normalizeUserSettings(user.settings, user.name);
 }
 
 export function updateUserSettings(
@@ -584,11 +597,11 @@ export function updateUserSettings(
     throw new Error('User not found.');
   }
 
-  user.settings = {
+  user.settings = normalizeUserSettings({
     ...user.settings,
     ...input,
     defaultRigor: Math.max(1, Math.min(5, Number(input.defaultRigor ?? user.settings.defaultRigor))),
-  };
+  }, user.name);
   user.name = user.settings.displayName.trim() || user.name;
   user.title = user.settings.title.trim() || user.title;
 

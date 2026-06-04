@@ -115,7 +115,7 @@ export const userSettings = pgTable('user_settings', {
   rememberSession: boolean('remember_session').notNull().default(true),
   compactSidebar: boolean('compact_sidebar').notNull().default(false),
   autoOpenArena: boolean('auto_open_arena').notNull().default(true),
-  theme: text('theme').notNull().default('system'),
+  theme: text('theme').notNull().default('light'),
   metadata: jsonb('metadata').notNull().default({}),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

@@ -52,48 +52,6 @@
     color-scheme: light;
   }
 
-  :root[data-theme='dark'] {
-    color-scheme: dark;
-    --color-primary: oklch(72% 0.20 62);
-    --color-primary-container: oklch(36% 0.22 62);
-    --color-on-primary: oklch(10% 0.06 62);
-    --color-on-primary-container: oklch(94% 0.08 62);
-
-    --color-secondary: #71717a;
-    --color-secondary-container: #27272a;
-    --color-on-secondary: #09090b;
-    --color-on-secondary-container: #a1a1aa;
-
-    --color-tertiary: #34d399;
-    --color-tertiary-container: #065f46;
-    --color-on-tertiary: #001a12;
-    --color-on-tertiary-container: #bbf7d0;
-
-    --color-background: #09090b;
-    --color-on-background: #fafafa;
-
-    --color-surface: #0c0c0f;
-    --color-on-surface: #fafafa;
-    --color-surface-variant: #18181b;
-    --color-on-surface-variant: #a1a1aa;
-
-    --color-outline: #52525b;
-    --color-outline-variant: #27272a;
-
-    --color-error: #ef4444;
-    --color-on-error: #1a0000;
-
-    --color-dataviz-amber: oklch(82% 0.18 85);
-    --color-dataviz-sky: oklch(76% 0.14 265);
-    --color-dataviz-rose: oklch(72% 0.18 15);
-
-    --color-surface-container-lowest: #09090b;
-    --color-surface-container-low: #0f0f12;
-    --color-surface-container: #121215;
-    --color-surface-container-high: #18181b;
-    --color-surface-container-highest: #1e1e22;
-  }
-
   body {
     @apply bg-background text-on-background antialiased;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02";

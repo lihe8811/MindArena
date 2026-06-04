@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { Swords, ArrowRight, BarChart2, BookOpen } from 'lucide-react';
+import { ArrowRight, BarChart2, BookOpen } from 'lucide-react';
+import { MindArenaLogo } from '@/client/components/MindArenaLogo';
 import type { VerificationChallenge } from '@/shared/types';
 
 const STRICT_EMAIL_PATTERN =
@@ -115,9 +116,7 @@ export function Landing({
         
         <div className="relative z-10 flex flex-col justify-between p-12 lg:p-20">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <Swords className="w-6 h-6 text-on-primary fill-current" />
-            </div>
+            <MindArenaLogo />
             <span className="text-2xl font-black tracking-tighter text-on-surface">MindArena</span>
           </div>
 

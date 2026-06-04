@@ -491,9 +491,6 @@ app.put('/api/settings', (req, res) => {
         rememberSession: Boolean(req.body?.rememberSession),
         compactSidebar: Boolean(req.body?.compactSidebar),
         autoOpenArena: Boolean(req.body?.autoOpenArena),
-        theme: ['system', 'light', 'dark'].includes(String(req.body?.theme))
-          ? String(req.body?.theme) as 'system' | 'light' | 'dark'
-          : 'system',
       }),
     );
   } catch (error) {

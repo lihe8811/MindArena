@@ -15,7 +15,6 @@ export interface UserSettings {
   rememberSession: boolean;
   compactSidebar: boolean;
   autoOpenArena: boolean;
-  theme: 'system' | 'light' | 'dark';
 }
 
 export interface UserProfile {

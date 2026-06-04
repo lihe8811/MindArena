@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, LayoutPanelLeft, MoonStar, ShieldCheck, UserCircle2 } from 'lucide-react';
+import { Bell, LayoutPanelLeft, ShieldCheck, UserCircle2 } from 'lucide-react';
 import type { UserSettings } from '@/shared/types';
 
 interface SettingsProps {
@@ -151,29 +151,6 @@ export function Settings({ settings, isSubmitting, onSave }: SettingsProps) {
             </div>
           </section>
         </div>
-
-        <section className="rounded-3xl border border-outline-variant bg-surface-container p-6">
-          <div className="flex items-center gap-3">
-            <MoonStar className="w-5 h-5 text-primary" />
-            <h3 className="text-xl font-bold text-on-surface">Appearance</h3>
-          </div>
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-3">
-            {(['system', 'light', 'dark'] as const).map((theme) => (
-              <button
-                key={theme}
-                type="button"
-                onClick={() => setForm({ ...form, theme })}
-                className={`rounded-2xl border px-4 py-4 text-sm font-bold capitalize ${
-                  form.theme === theme
-                    ? 'border-primary bg-primary/10 text-on-surface'
-                    : 'border-outline-variant bg-surface-container-low text-secondary'
-                }`}
-              >
-                {theme}
-              </button>
-            ))}
-          </div>
-        </section>
 
         <div className="flex justify-end">
           <button
