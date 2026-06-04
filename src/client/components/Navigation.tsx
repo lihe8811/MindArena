@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { MindArenaLogo } from '@/client/components/MindArenaLogo';
+import { StudentAvatar } from '@/client/components/StudentAvatar';
 import { cn } from '@/client/lib/utils';
 import { ROUTES, type Route } from '@/shared/constants';
 import type { UserProfile, View } from '@/shared/types';
@@ -89,10 +90,13 @@ function NavContent({
       </nav>
 
       <div className="p-4 border-t border-outline-variant space-y-3">
-        <div className="px-3 py-3 rounded-xl bg-surface-container border border-outline-variant">
-          <p className="text-xs font-medium text-secondary">Signed in as</p>
-          <p className="text-sm font-bold text-on-surface mt-2 truncate">{user?.name ?? 'Guest'}</p>
-          <p className="text-xs text-secondary truncate">{user?.email ?? 'Not connected'}</p>
+        <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-surface-container border border-outline-variant">
+          <StudentAvatar variant={4} className="h-9 w-9" />
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-secondary">Signed in as</p>
+            <p className="text-sm font-bold text-on-surface mt-1 truncate">{user?.name ?? 'Guest'}</p>
+            <p className="text-xs text-secondary truncate">{user?.email ?? 'Not connected'}</p>
+          </div>
         </div>
         <button className="w-full flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-high/50 hover:text-on-surface transition-all rounded-lg font-sans text-sm tracking-tight">
           <HelpCircle className="w-5 h-5" /> Help
@@ -220,9 +224,7 @@ export function TopBar({ onSearch, title, subtitle, user, onToggleSidebar, onNot
         >
           <Settings className="w-5 h-5" />
         </button>
-        <div className="w-8 h-8 rounded-full border border-outline-variant bg-primary/10 text-primary overflow-hidden cursor-pointer hover:ring-2 ring-primary/20 transition-all flex items-center justify-center text-xs font-black">
-          {(user?.name ?? 'M').slice(0, 1).toUpperCase()}
-        </div>
+        <StudentAvatar variant={3} className="h-8 w-8 cursor-pointer hover:ring-2 ring-primary/20 transition-all" />
       </div>
     </header>
   );

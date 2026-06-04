@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, BarChart2, BookOpen } from 'lucide-react';
 import { MindArenaLogo } from '@/client/components/MindArenaLogo';
+import { StudentAvatar } from '@/client/components/StudentAvatar';
 import type { VerificationChallenge } from '@/shared/types';
 
 const STRICT_EMAIL_PATTERN =
@@ -172,13 +173,13 @@ export function Landing({
 
           <div className="flex items-center gap-6">
             <div className="flex -space-x-3">
-              {[1, 2, 3].map((i) => (
-                <img 
-                  key={i}
-                  className="w-10 h-10 rounded-full border-2 border-background" 
-                  src={`https://i.pravatar.cc/150?u=mindarena-${i}`}
-                  alt=""
-                />
+              {[0, 1, 2].map((variant) => (
+                <div key={variant}>
+                  <StudentAvatar
+                    variant={variant}
+                    className="h-10 w-10"
+                  />
+                </div>
               ))}
             </div>
             <p className="text-sm text-secondary">
