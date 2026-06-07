@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bot, Route, Send, Swords, Timer, UserCircle2 } from 'lucide-react';
+import { Bot, Route, Send, Swords, Timer, UserCircle2, MessageSquareQuote } from 'lucide-react';
 import type { ActiveDebate, DebateParticipant } from '@/shared/types';
 
 interface ArenaProps {
   debate: ActiveDebate | null;
   onSendMessage: (content: string) => Promise<void>;
+  onRequestCoaching?: () => Promise<string>;
   isSending?: boolean;
 }
 
@@ -28,9 +29,11 @@ const defaultParticipants: DebateParticipant[] = [
   { id: 'con2', label: 'con2', side: 'Opponent', speakerOrder: 2 },
 ];
 
-export function Arena({ debate, onSendMessage, isSending }: ArenaProps) {
+export function Arena({ debate, onSendMessage, onRequestCoaching, isSending }: ArenaProps) {
   const [draft, setDraft] = useState('');
   const [now, setNow] = useState(() => Date.now());
+  const [coaching, setCoaching] = useState<string | null>(null);
+  const [isCoaching, setIsCoaching] = useState(false);
 
   const isDebateOpen = debate?.status === 'Ready' || debate?.status === 'In Progress';
   const participants = debate?.participants?.length === 4 ? debate.participants : defaultParticipants;
@@ -144,6 +147,39 @@ export function Arena({ debate, onSendMessage, isSending }: ArenaProps) {
             Send an argument to record your turn, show the orchestration handoff, and receive a Rival Agent A mock rebuttal in the same transcript.
           </p>
         </div>
+
+        {onRequestCoaching && (
+          <div className="rounded-2xl border border-outline-variant bg-surface-container-low p-4 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-bold text-on-surface">
+              <MessageSquareQuote className="w-4 h-4 text-primary" />
+              Teammate Coach
+            </div>
+            <button
+              type="button"
+              disabled={isCoaching || !isDebateOpen}
+              onClick={async () => {
+                setIsCoaching(true);
+                setCoaching(null);
+                try {
+                  const advice = await onRequestCoaching();
+                  setCoaching(advice);
+                } catch {
+                  setCoaching('Unable to reach teammate coach right now.');
+                } finally {
+                  setIsCoaching(false);
+                }
+              }}
+              className="w-full rounded-xl bg-primary/10 border border-primary/20 px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors"
+            >
+              {isCoaching ? 'Coaching...' : 'Request Coaching'}
+            </button>
+            {coaching && (
+              <div className="rounded-xl bg-tertiary/10 border border-tertiary/20 px-3 py-2 text-sm text-on-surface whitespace-pre-line">
+                {coaching}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="rounded-3xl border border-outline-variant bg-surface-container overflow-hidden flex flex-col">

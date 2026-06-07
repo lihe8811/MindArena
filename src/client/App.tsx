@@ -46,6 +46,7 @@ import {
   resendVerification,
   confirmLogin,
   resendLoginCode,
+  requestTeammateCoaching,
 } from './lib/api';
 import type { AppBootstrap, View, VerificationChallenge } from '@/shared/types';
 
@@ -251,6 +252,11 @@ function App() {
     }
   };
 
+  const handleRequestCoaching = async () => {
+    const { coaching } = await requestTeammateCoaching();
+    return coaching;
+  };
+
   const handleOpenSettings = async () => {
     setBusy(true);
     setError(null);
@@ -335,7 +341,7 @@ function App() {
           />
         );
       case 'arena':
-        return <Arena debate={appData.activeDebate} onSendMessage={handleSendMessage} isSending={busy} />;
+        return <Arena debate={appData.activeDebate} onSendMessage={handleSendMessage} onRequestCoaching={handleRequestCoaching} isSending={busy} />;
       case 'history':
         return <History items={filteredHistory} />;
       case 'performance':

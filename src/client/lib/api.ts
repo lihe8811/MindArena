@@ -154,3 +154,9 @@ export function markNotificationsRead() {
     method: 'PUT',
   });
 }
+
+export function requestTeammateCoaching() {
+  return request<{ coaching: string }>('/api/debates/current/coach', {
+    method: 'POST',
+  });
+}
