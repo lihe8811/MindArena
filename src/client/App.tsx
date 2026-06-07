@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 const LOADING_MESSAGES = [
   'Loading your practice records...',
@@ -25,7 +25,8 @@ function LoadingScreen() {
     </div>
   );
 }
-import { Sidebar, TopBar } from './components/Navigation';
+import { Menu } from 'lucide-react';
+import { Sidebar } from './components/Navigation';
 import { Landing } from './pages/Landing';
 import { Dashboard } from './pages/Dashboard';
 import { StartDebate } from './pages/StartDebate';
@@ -35,12 +36,10 @@ import { Performance } from './pages/Performance';
 import {
   createDebate,
   getBootstrap,
-  getNotifications,
   getSettings,
   login,
   register,
   logout,
-  markNotificationsRead,
   sendDebateMessage,
   verifyEmail,
   resendVerification,
@@ -49,14 +48,6 @@ import {
 } from './lib/api';
 import type { AppBootstrap, View, VerificationChallenge } from '@/shared/types';
 
-const VIEW_META: Record<Exclude<View, 'landing'>, { title: string; subtitle: string }> = {
-  dashboard: { title: 'Dashboard', subtitle: 'Your debate workspace' },
-  'start-debate': { title: 'Start Debate', subtitle: 'Create a new session' },
-  arena: { title: 'Arena', subtitle: 'Live transcript and round controls' },
-  history: { title: 'History', subtitle: 'Past sessions and results' },
-  performance: { title: 'Performance', subtitle: 'Metrics and coaching notes' },
-};
-
 function App() {
   const [appData, setAppData] = useState<AppBootstrap | null>(null);
   const [currentView, setCurrentView] = useState<View>('landing');
@@ -64,7 +55,6 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [verificationChallenge, setVerificationChallenge] = useState<VerificationChallenge | null>(null);
   const [loginChallenge, setLoginChallenge] = useState<VerificationChallenge | null>(null);
@@ -266,36 +256,6 @@ function App() {
     }
   };
 
-  const handleOpenNotifications = async () => {
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-
-    try {
-      const data = await getNotifications();
-      const unread = data.notifications.filter((notification) => !notification.read).length;
-      setNotice(`You have ${unread} unread notification(s).`);
-      await markNotificationsRead();
-      await refreshApp();
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to load notifications.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const filteredHistory = useMemo(() => {
-    if (!appData) return [];
-    if (!searchQuery.trim()) return appData.history;
-    const query = searchQuery.toLowerCase();
-    return appData.history.filter(
-      (item) =>
-        item.topic.toLowerCase().includes(query) ||
-        item.subject.toLowerCase().includes(query) ||
-        item.status.toLowerCase().includes(query),
-    );
-  }, [appData, searchQuery]);
-
   if (loading || !appData) {
     return <LoadingScreen />;
   }
@@ -337,7 +297,7 @@ function App() {
       case 'arena':
         return <Arena debate={appData.activeDebate} onSendMessage={handleSendMessage} isSending={busy} />;
       case 'history':
-        return <History items={filteredHistory} />;
+        return <History items={appData.history} />;
       case 'performance':
         return <Performance data={appData.performance} />;
       default:
@@ -370,8 +330,6 @@ function App() {
     );
   }
 
-  const meta = VIEW_META[currentView as Exclude<View, 'landing'>];
-
   return (
     <div className="min-h-screen bg-background flex text-on-background font-sans overflow-x-hidden">
       <Sidebar 
@@ -387,6 +345,9 @@ function App() {
         onLogout={() => {
           void handleLogout();
         }}
+        onSettingsClick={() => {
+          void handleOpenSettings();
+        }}
         user={appData.session.user}
         hasActiveDebate={Boolean(appData.activeDebate)}
         isMobileOpen={mobileSidebarOpen}
@@ -394,21 +355,15 @@ function App() {
       />
 
       <div className="flex-1 ml-0 md:ml-64 flex flex-col min-w-0">
-        <TopBar
-          title={meta.title}
-          subtitle={meta.subtitle}
-          user={appData.session.user}
-          onSearch={setSearchQuery}
-          onToggleSidebar={() => setMobileSidebarOpen((open) => !open)}
-          onNotificationClick={() => {
-            void handleOpenNotifications();
-          }}
-          onSettingsClick={() => {
-            void handleOpenSettings();
-          }}
-        />
-        
-        <main className="flex-1 mt-14 px-6 py-8 overflow-y-auto">
+        <main className="flex-1 px-6 py-8 overflow-y-auto">
+          <button
+            type="button"
+            onClick={() => setMobileSidebarOpen((open) => !open)}
+            className="mb-6 inline-flex md:hidden p-2 text-secondary hover:bg-surface-container-high hover:text-on-surface rounded-full transition-all"
+            aria-label="Open navigation"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
           {notice ? (
             <div className="mb-6 rounded-2xl border border-tertiary/30 bg-tertiary/10 px-4 py-3 text-sm text-emerald-100">
               {notice}
