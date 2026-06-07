@@ -1,5 +1,201 @@
 {
-  "users": [],
-  "sessions": [],
-  "debates": []
+  "users": [
+    {
+      "id": "user-29f69c1a-1fcd-42da-beae-2ae51e2e6205",
+      "name": "He Li",
+      "email": "lihe8811@gmail.com",
+      "title": "Logic Apprentice",
+      "streak": 1,
+      "createdAt": "2026-06-03T07:33:58.553Z",
+      "settings": {
+        "displayName": "He Li",
+        "title": "Logic Apprentice",
+        "defaultStance": "Proponent",
+        "defaultRigor": 3,
+        "emailNotifications": true,
+        "rememberSession": true,
+        "compactSidebar": false,
+        "autoOpenArena": true
+      },
+      "passwordHash": "0e2f68a95675692b4d07a5a33a0e53ae:f02d83d82b4af916000480a90e59bc41d58cce9808dfb9f8b706c9b6e5dd985f03314bf4b658908fef97ea71a28c2183c7e1ff297fa9fdeb559997b09b2d0715",
+      "emailVerified": true,
+      "emailVerifiedAt": "2026-06-03T07:33:58.553Z",
+      "passwordReset": null
+    }
+  ],
+  "sessions": [
+    {
+      "token": "6f369ab0-614c-4ca2-9f4c-e6b199eecdbe",
+      "userId": "user-29f69c1a-1fcd-42da-beae-2ae51e2e6205",
+      "createdAt": "2026-06-04T08:57:38.753Z",
+      "expiresAt": "2026-07-04T08:57:38.753Z"
+    },
+    {
+      "token": "d9e0101d-ee86-43f1-b960-ef4f97e8c762",
+      "userId": "user-29f69c1a-1fcd-42da-beae-2ae51e2e6205",
+      "createdAt": "2026-06-07T00:48:12.181Z",
+      "expiresAt": "2026-07-07T00:48:12.181Z"
+    }
+  ],
+  "debates": [
+    {
+      "id": "debate-d9c91ec6-1a67-46fb-9b5c-8d799c75dd91",
+      "userId": "user-29f69c1a-1fcd-42da-beae-2ae51e2e6205",
+      "topic": "Universities should require every student to take a formal logic course.",
+      "stance": "Proponent",
+      "speakerRole": "pro1",
+      "rigor": 3,
+      "knowledgeDocumentIds": [],
+      "stage": "Verdict",
+      "timerLabel": "04:00",
+      "status": "Completed",
+      "messages": [
+        {
+          "id": "msg-0f7f4536-e0a1-45f6-8d2b-3cd565417de6",
+          "role": "system",
+          "author": "Moderator",
+          "time": "05:00 PM",
+          "content": "Debate created. You are pro1 on the proponent side for: \"Universities should require every student to take a formal logic course.\"."
+        },
+        {
+          "id": "msg-b7948d72-07fa-46b0-b2c6-6ec3a7909b93",
+          "role": "user",
+          "author": "Student",
+          "time": "05:00 PM",
+          "content": "Hello"
+        },
+        {
+          "id": "msg-3fc90901-a4f0-4d5c-ad0e-1d3b1fb65b4b",
+          "role": "system",
+          "author": "Moderator",
+          "time": "05:00 PM",
+          "content": "Student turn recorded. Searching the knowledge base and handing context to Rival Agent A."
+        },
+        {
+          "id": "msg-92d5a649-3d07-446b-91d1-91632da13c2a",
+          "role": "assistant",
+          "author": "Rival Agent A",
+          "time": "05:00 PM",
+          "content": "Mock Rival Agent A (Opponent, rigor 3/5)\nPhase: Constructive\nTopic: Universities should require every student to take a formal logic course.\nThe response uses the retrieved knowledge context and recent transcript.\nRebuttal: Your claim needs a clearer warrant. Even if the concern is valid, the policy burden is to prove that regulation improves outcomes without creating worse tradeoffs."
+        },
+        {
+          "id": "msg-b00add5d-55d9-4942-82fe-83604d2cf224",
+          "role": "user",
+          "author": "Student",
+          "time": "05:01 PM",
+          "content": "Next"
+        },
+        {
+          "id": "msg-6b096a86-a119-4f50-a99c-478542a1e339",
+          "role": "system",
+          "author": "Moderator",
+          "time": "05:01 PM",
+          "content": "Student turn recorded. Searching the knowledge base and handing context to Rival Agent A."
+        },
+        {
+          "id": "msg-b777154c-63fb-44e0-bfd4-4b075d8c9f15",
+          "role": "assistant",
+          "author": "Rival Agent A",
+          "time": "05:01 PM",
+          "content": "Mock Rival Agent A (Opponent, rigor 3/5)\nPhase: Constructive\nTopic: Universities should require every student to take a formal logic course.\nThe response uses the retrieved knowledge context and recent transcript.\nRebuttal: Your claim needs a clearer warrant. Even if the concern is valid, the policy burden is to prove that regulation improves outcomes without creating worse tradeoffs."
+        },
+        {
+          "id": "msg-9111cd1b-e350-46e8-a4ee-ecd2493898e0",
+          "role": "user",
+          "author": "Student",
+          "time": "05:01 PM",
+          "content": "Hello"
+        },
+        {
+          "id": "msg-a836bd82-d413-4d39-b999-56d6302fcaa0",
+          "role": "system",
+          "author": "Moderator",
+          "time": "05:01 PM",
+          "content": "Student turn recorded. Searching the knowledge base and handing context to Rival Agent A."
+        }
+      ],
+      "createdAt": "2026-06-04T09:00:22.826Z",
+      "updatedAt": "2026-06-04T09:01:17.268Z",
+      "participants": [
+        {
+          "id": "pro1",
+          "label": "pro1",
+          "side": "Proponent",
+          "speakerOrder": 1
+        },
+        {
+          "id": "pro2",
+          "label": "pro2",
+          "side": "Proponent",
+          "speakerOrder": 2
+        },
+        {
+          "id": "con1",
+          "label": "con1",
+          "side": "Opponent",
+          "speakerOrder": 1
+        },
+        {
+          "id": "con2",
+          "label": "con2",
+          "side": "Opponent",
+          "speakerOrder": 2
+        }
+      ],
+      "opponent": "Rival AI (Level 3)",
+      "domain": "General Policy",
+      "score": 96
+    },
+    {
+      "id": "debate-046e1e08-f7e2-433a-8ffb-39241e48ade2",
+      "userId": "user-29f69c1a-1fcd-42da-beae-2ae51e2e6205",
+      "topic": "Remote work should be the default for knowledge workers.",
+      "stance": "Opponent",
+      "speakerRole": "con1",
+      "rigor": 3,
+      "knowledgeDocumentIds": [],
+      "stage": "Constructive",
+      "timerLabel": "04:00",
+      "status": "Ready",
+      "messages": [
+        {
+          "id": "msg-d9660aa6-e09c-4d6b-a6bc-e7f4fdd58ad1",
+          "role": "system",
+          "author": "Moderator",
+          "time": "09:54 AM",
+          "content": "Debate created. You are con1 on the opponent side for: \"Remote work should be the default for knowledge workers.\"."
+        }
+      ],
+      "createdAt": "2026-06-07T01:54:14.779Z",
+      "updatedAt": "2026-06-07T01:54:14.779Z",
+      "participants": [
+        {
+          "id": "pro1",
+          "label": "pro1",
+          "side": "Proponent",
+          "speakerOrder": 1
+        },
+        {
+          "id": "pro2",
+          "label": "pro2",
+          "side": "Proponent",
+          "speakerOrder": 2
+        },
+        {
+          "id": "con1",
+          "label": "con1",
+          "side": "Opponent",
+          "speakerOrder": 1
+        },
+        {
+          "id": "con2",
+          "label": "con2",
+          "side": "Opponent",
+          "speakerOrder": 2
+        }
+      ],
+      "opponent": "Rival AI (Level 3)",
+      "domain": "General Policy"
+    }
+  ]
 }

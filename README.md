@@ -69,12 +69,12 @@ MindArena now defaults to **Neon Postgres** for the database layer.
    bun run db:migrate
    ```
 
-For email verification in registration, also set:
+For password reset email delivery, also set:
 
 - `RESEND_API_KEY`
 - `EMAIL_FROM`
 
-If those are missing, the server falls back to printing verification codes in the dev log.
+If those are missing, the server falls back to printing reset codes in the dev log.
 
 The current schema includes:
 

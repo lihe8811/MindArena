@@ -4,11 +4,11 @@ This schema is organized around four core domains: account/auth, debate runtime,
 
 ## Account And Auth
 
-- `users`: core account record, password hash, verification state, login timestamps.
+- `users`: core account record, password hash, legacy verification state, login timestamps.
 - `user_settings`: per-user defaults and workspace behavior.
 - `user_quotas`: limits for docs, jobs, storage, and collections.
 - `sessions`: server-side sessions, expiry, remember-session flag, invalidation state.
-- `auth_challenges`: one-time verification records for signup, login, and password reset codes.
+- `auth_challenges`: one-time code records for password reset and other future challenge flows.
 
 ## Debate Runtime
 
@@ -48,7 +48,7 @@ This schema is organized around four core domains: account/auth, debate runtime,
 
 ## Key Modeling Rules
 
-- Account verification, login verification, and password reset all use `auth_challenges`.
+- Password reset uses challenge-style codes; registration and login create sessions directly.
 - Debate current status lives on `debate_sessions`, while every transition is appended to `debate_status_events`.
 - Every spoken or generated message should be inserted into `transcript_events`, one row per utterance.
 - Knowledge attached to a debate should be tracked through `debate_session_knowledge_documents` and `knowledge_citations`.

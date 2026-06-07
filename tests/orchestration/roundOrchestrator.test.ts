@@ -7,6 +7,7 @@ import * as originalAgentFactory from '../../src/server/agents/agentFactory.ts';
 
 const mockState = {
   appendedMessages: [] as Array<{ userId: string; author: string; content: string }>,
+  advancedDebates: [] as string[],
   activeDebate: {
     id: 'debate-1',
     topic: 'Resolved: recommendation algorithms should be regulated.',
@@ -76,6 +77,22 @@ mock.module('../../src/server/stores/appStore.ts', () => ({
       messages: [...mockState.activeDebate.messages],
     };
   },
+  advanceDebateStage: (userId: string) => {
+    mockState.advancedDebates.push(userId);
+    return {
+      ...mockState.activeDebate,
+      messages: [
+        ...mockState.activeDebate.messages,
+        ...mockState.appendedMessages.map((message, index) => ({
+          id: `msg-${index + 1}`,
+          role: message.author === 'Student' ? 'user' as const : 'assistant' as const,
+          author: message.author,
+          time: '09:01 AM',
+          content: message.content,
+        })),
+      ],
+    };
+  },
   getActiveDebate: () => mockState.activeDebate,
 }));
 
@@ -118,6 +135,7 @@ const { RoundOrchestrator } = await import('../../src/server/orchestration/round
 
 beforeEach(() => {
   mockState.appendedMessages = [];
+  mockState.advancedDebates = [];
   mockState.searchCalls = [];
   mockState.agentConfigs = [];
   mockState.runPrompts = [];
@@ -176,6 +194,7 @@ describe('RoundOrchestrator', () => {
       content: 'AI rebuttal grounded in the retrieved evidence.',
     });
     expect(updatedDebate.messages.some((m) => m.author === 'Rival Agent A')).toBe(true);
+    expect(mockState.advancedDebates).toEqual(['user-1']);
   });
 
   test('serializes structured agent output before appending it to the debate', async () => {

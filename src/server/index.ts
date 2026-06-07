@@ -2,12 +2,11 @@ import express from 'express';
 import path from 'node:path';
 import type { Request, Response } from 'express';
 import { isValidEmailAddress } from './auth/email';
-import { sendVerificationCodeEmail } from './auth/emailVerification';
+import { sendPasswordResetCodeEmail } from './auth/emailVerification';
 import {
   appendDebateMessage,
   buildDashboardForUser,
   buildPerformanceForUser,
-  confirmLoginCode,
   createDebateForUser,
   getActiveDebate,
   getSessionFromToken,
@@ -17,12 +16,9 @@ import {
   logoutSession,
   requestPasswordReset,
   registerUser,
-  resendLoginCode,
   resetPasswordWithCode,
-  resendVerificationCode,
   requireUserFromToken,
   updateUserSettings,
-  verifyUserEmail,
 } from './stores/appStore.ts';
 import {
   createKnowledgeEntry,
@@ -141,7 +137,7 @@ app.get('/api/bootstrap', (req, res) => {
   res.json(buildBootstrap(req));
 });
 
-app.post('/api/session/register', async (req, res) => {
+app.post('/api/session/register', (req, res) => {
   const name = String(req.body?.name ?? '').trim();
   const email = String(req.body?.email ?? '').trim();
   const password = String(req.body?.password ?? '');
@@ -157,41 +153,13 @@ app.post('/api/session/register', async (req, res) => {
   }
 
   try {
-    const verification = registerUser({ name, email, password });
-    let deliveryMethod: 'email' | 'dev-log' = 'email';
-    let previewCode: string | undefined;
-    try {
-      const delivery = await sendVerificationCodeEmail({
-        email: verification.email,
-        code: verification.code,
-        expiresAt: verification.expiresAt,
-        purpose: 'verification',
-      });
-      deliveryMethod = delivery.provider === 'resend' ? 'email' : 'dev-log';
-      previewCode = delivery.previewCode;
-    } catch (deliveryError) {
-      res
-        .status(502)
-        .send(
-          deliveryError instanceof Error
-            ? `Account created, but we could not send the verification email. ${deliveryError.message}`
-            : 'Account created, but we could not send the verification email.',
-        );
-      return;
-    }
-    res.status(201).json({
-      email: verification.email,
-      expiresAt: verification.expiresAt,
-      requiresVerification: true,
-      deliveryMethod,
-      previewCode,
-    });
+    res.status(201).json(registerUser({ name, email, password }));
   } catch (error) {
     res.status(400).send(error instanceof Error ? error.message : 'Unable to register.');
   }
 });
 
-app.post('/api/session/login', async (req, res) => {
+app.post('/api/session/login', (req, res) => {
   const email = String(req.body?.email ?? '').trim();
   const password = String(req.body?.password ?? '');
 
@@ -201,180 +169,9 @@ app.post('/api/session/login', async (req, res) => {
   }
 
   try {
-    const challenge = loginUser({ email, password });
-    let deliveryMethod: 'email' | 'dev-log' = 'email';
-    let previewCode: string | undefined;
-    try {
-      const delivery = await sendVerificationCodeEmail({
-        email: challenge.email,
-        code: challenge.code,
-        expiresAt: challenge.expiresAt,
-        purpose: 'login',
-      });
-      deliveryMethod = delivery.provider === 'resend' ? 'email' : 'dev-log';
-      previewCode = delivery.previewCode;
-    } catch (deliveryError) {
-      res
-        .status(502)
-        .send(
-          deliveryError instanceof Error
-            ? `Sign-in code created, but we could not send the email. ${deliveryError.message}`
-            : 'Sign-in code created, but we could not send the email.',
-        );
-      return;
-    }
-
-    res.json({
-      email: challenge.email,
-      expiresAt: challenge.expiresAt,
-      requiresVerification: true,
-      deliveryMethod,
-      previewCode,
-    });
+    res.json(loginUser({ email, password }));
   } catch (error) {
     res.status(401).send(error instanceof Error ? error.message : 'Unable to sign in.');
-  }
-});
-
-app.post('/api/session/confirm-login', (req, res) => {
-  const email = String(req.body?.email ?? '').trim();
-  const code = String(req.body?.code ?? '').trim();
-
-  if (!email || !code) {
-    res.status(400).send('Email and sign-in code are required.');
-    return;
-  }
-
-  if (!isValidEmailAddress(email)) {
-    res.status(400).send('Please enter a valid email address.');
-    return;
-  }
-
-  try {
-    res.json(confirmLoginCode({ email, code }));
-  } catch (error) {
-    res.status(401).send(error instanceof Error ? error.message : 'Unable to complete sign in.');
-  }
-});
-
-app.post('/api/session/resend-login-code', async (req, res) => {
-  const email = String(req.body?.email ?? '').trim();
-
-  if (!email) {
-    res.status(400).send('Email is required.');
-    return;
-  }
-
-  if (!isValidEmailAddress(email)) {
-    res.status(400).send('Please enter a valid email address.');
-    return;
-  }
-
-  try {
-    const challenge = resendLoginCode(email);
-    let deliveryMethod: 'email' | 'dev-log' = 'email';
-    let previewCode: string | undefined;
-    try {
-      const delivery = await sendVerificationCodeEmail({
-        email: challenge.email,
-        code: challenge.code,
-        expiresAt: challenge.expiresAt,
-        purpose: 'login',
-      });
-      deliveryMethod = delivery.provider === 'resend' ? 'email' : 'dev-log';
-      previewCode = delivery.previewCode;
-    } catch (deliveryError) {
-      res
-        .status(502)
-        .send(
-          deliveryError instanceof Error
-            ? `A new sign-in code was created, but we could not send the email. ${deliveryError.message}`
-            : 'A new sign-in code was created, but we could not send the email.',
-        );
-      return;
-    }
-
-    res.json({
-      email: challenge.email,
-      expiresAt: challenge.expiresAt,
-      requiresVerification: true,
-      deliveryMethod,
-      previewCode,
-    });
-  } catch (error) {
-    res.status(400).send(error instanceof Error ? error.message : 'Unable to resend sign-in code.');
-  }
-});
-
-app.post('/api/session/verify-email', (req, res) => {
-  const email = String(req.body?.email ?? '').trim();
-  const code = String(req.body?.code ?? '').trim();
-
-  if (!email || !code) {
-    res.status(400).send('Email and verification code are required.');
-    return;
-  }
-
-  if (!isValidEmailAddress(email)) {
-    res.status(400).send('Please enter a valid email address.');
-    return;
-  }
-
-  try {
-    res.json({
-      ok: true,
-      ...verifyUserEmail({ email, code }),
-    });
-  } catch (error) {
-    res.status(400).send(error instanceof Error ? error.message : 'Unable to verify email.');
-  }
-});
-
-app.post('/api/session/resend-verification', async (req, res) => {
-  const email = String(req.body?.email ?? '').trim();
-
-  if (!email) {
-    res.status(400).send('Email is required.');
-    return;
-  }
-
-  if (!isValidEmailAddress(email)) {
-    res.status(400).send('Please enter a valid email address.');
-    return;
-  }
-
-  try {
-    const verification = resendVerificationCode(email);
-    let deliveryMethod: 'email' | 'dev-log' = 'email';
-    let previewCode: string | undefined;
-    try {
-      const delivery = await sendVerificationCodeEmail({
-        email: verification.email,
-        code: verification.code,
-        expiresAt: verification.expiresAt,
-        purpose: 'verification',
-      });
-      deliveryMethod = delivery.provider === 'resend' ? 'email' : 'dev-log';
-      previewCode = delivery.previewCode;
-    } catch (deliveryError) {
-      res
-        .status(502)
-        .send(
-          deliveryError instanceof Error
-            ? `A new code was created, but we could not send the verification email. ${deliveryError.message}`
-            : 'A new code was created, but we could not send the verification email.',
-        );
-      return;
-    }
-    res.json({
-      email: verification.email,
-      expiresAt: verification.expiresAt,
-      requiresVerification: true,
-      deliveryMethod,
-      previewCode,
-    });
-  } catch (error) {
-    res.status(400).send(error instanceof Error ? error.message : 'Unable to resend verification code.');
   }
 });
 
@@ -396,7 +193,7 @@ app.post('/api/session/request-password-reset', async (req, res) => {
     let deliveryMethod: 'email' | 'dev-log' = 'email';
     let previewCode: string | undefined;
     try {
-      const delivery = await sendVerificationCodeEmail({
+      const delivery = await sendPasswordResetCodeEmail({
         email: reset.email,
         code: reset.code,
         expiresAt: reset.expiresAt,

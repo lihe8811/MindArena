@@ -37,18 +37,12 @@ export interface AuthResponse {
   session: AuthSession;
 }
 
-export interface VerificationChallenge {
+export interface PasswordResetChallenge {
   email: string;
   expiresAt: string;
   requiresVerification: true;
   deliveryMethod?: 'email' | 'dev-log';
   previewCode?: string;
-}
-
-export interface EmailVerificationResponse {
-  ok: true;
-  email: string;
-  verifiedAt: string;
 }
 
 export interface PasswordResetResponse {

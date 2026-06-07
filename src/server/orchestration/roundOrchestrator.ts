@@ -1,6 +1,6 @@
 import { AgentFactory } from '../agents/agentFactory.ts';
 import { run } from '@openai/agents';
-import { appendDebateMessage, getActiveDebate } from '../stores/appStore.ts';
+import { advanceDebateStage, appendDebateMessage, getActiveDebate } from '../stores/appStore.ts';
 import { searchKnowledgeBase } from '../stores/knowledgeBaseStore.ts';
 import { callJudgeAgent, JudgeFeedbackInput } from '../agents/judgeAgent.ts';
 import { buildMockTeammateResponse } from '../agents/teammateAgent.ts';
@@ -63,7 +63,7 @@ export class RoundOrchestrator {
         console.error('Teammate speech generation failed:', teammateError);
       }
 
-      return getActiveDebate(userId)!;
+      return advanceDebateStage(userId);
     } catch (error) {
       console.error('Error in RoundOrchestrator:', error);
       throw error;

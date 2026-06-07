@@ -41,13 +41,9 @@ import {
   register,
   logout,
   sendDebateMessage,
-  verifyEmail,
-  resendVerification,
-  confirmLogin,
-  resendLoginCode,
   requestTeammateCoaching,
 } from './lib/api';
-import type { AppBootstrap, View, VerificationChallenge } from '@/shared/types';
+import type { AppBootstrap, View } from '@/shared/types';
 
 function App() {
   const [appData, setAppData] = useState<AppBootstrap | null>(null);
@@ -57,8 +53,6 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [verificationChallenge, setVerificationChallenge] = useState<VerificationChallenge | null>(null);
-  const [loginChallenge, setLoginChallenge] = useState<VerificationChallenge | null>(null);
 
   const refreshApp = useCallback(async () => {
     const data = await getBootstrap();
@@ -93,48 +87,14 @@ function App() {
     setBusy(true);
     setError(null);
     setNotice(null);
-    setLoginChallenge(null);
 
     try {
-      const challenge = await login(email, password);
-      setLoginChallenge(challenge);
-      setNotice('Sign-in code sent. Enter it below to continue.');
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to sign in.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleConfirmLogin = async (email: string, code: string) => {
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-
-    try {
-      await confirmLogin(email, code);
-      setLoginChallenge(null);
+      await login(email, password);
       const data = await refreshApp();
       setCurrentView(data.activeDebate ? 'arena' : 'dashboard');
       setNotice('Signed in successfully.');
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to confirm sign in.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleResendLoginVerification = async (email: string) => {
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-
-    try {
-      const challenge = await resendLoginCode(email);
-      setLoginChallenge(challenge);
-      setNotice('A new sign-in code has been sent.');
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to resend sign-in code.');
+      setError(requestError instanceof Error ? requestError.message : 'Unable to sign in.');
     } finally {
       setBusy(false);
     }
@@ -144,46 +104,14 @@ function App() {
     setBusy(true);
     setError(null);
     setNotice(null);
-    setVerificationChallenge(null);
 
     try {
-      const challenge = await register(payload);
-      setVerificationChallenge(challenge);
-      setNotice('Account created. Check your email for the verification code.');
+      await register(payload);
+      await refreshApp();
+      setCurrentView('dashboard');
+      setNotice('Account created. Your workspace is now persistent.');
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Unable to create account.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleVerifyEmail = async (email: string, code: string) => {
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-
-    try {
-      await verifyEmail(email, code);
-      setVerificationChallenge(null);
-      setNotice('Email verified. Please sign in to continue.');
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to verify email.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleResendVerification = async (email: string) => {
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-
-    try {
-      const challenge = await resendVerification(email);
-      setVerificationChallenge(challenge);
-      setNotice('A new verification code has been sent.');
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to resend verification code.');
     } finally {
       setBusy(false);
     }
@@ -269,21 +197,7 @@ function App() {
   const renderView = () => {
     switch (currentView) {
       case 'landing':
-        return (
-          <Landing
-            onLogin={handleLogin}
-            onConfirmLogin={handleConfirmLogin}
-            onRegister={handleRegister}
-            onVerifyEmail={handleVerifyEmail}
-            onResendVerification={handleResendVerification}
-            onResendLoginVerification={handleResendLoginVerification}
-            loginChallenge={loginChallenge}
-            verificationChallenge={verificationChallenge}
-            isLoading={busy}
-            error={error}
-            notice={notice}
-          />
-        );
+        return <Landing onLogin={handleLogin} onRegister={handleRegister} isLoading={busy} error={error} />;
       case 'dashboard':
         return (
           <Dashboard
@@ -319,21 +233,7 @@ function App() {
   };
 
   if (!appData.session.authenticated || currentView === 'landing') {
-    return (
-      <Landing
-        onLogin={handleLogin}
-        onConfirmLogin={handleConfirmLogin}
-        onRegister={handleRegister}
-        onVerifyEmail={handleVerifyEmail}
-        onResendVerification={handleResendVerification}
-        onResendLoginVerification={handleResendLoginVerification}
-        loginChallenge={loginChallenge}
-        verificationChallenge={verificationChallenge}
-        isLoading={busy}
-        error={error}
-        notice={notice}
-      />
-    );
+    return <Landing onLogin={handleLogin} onRegister={handleRegister} isLoading={busy} error={error} />;
   }
 
   return (

@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { ArrowRight, BarChart2, BookOpen } from 'lucide-react';
 import { MindArenaLogo } from '@/client/components/MindArenaLogo';
 import { StudentAvatar } from '@/client/components/StudentAvatar';
-import type { VerificationChallenge } from '@/shared/types';
+import type { PasswordResetChallenge } from '@/shared/types';
 
 const STRICT_EMAIL_PATTERN =
   /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@(?=.{4,255}$)(?:(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)\.)+[A-Za-z]{2,63}$/;
@@ -22,16 +22,10 @@ function isValidEmailAddress(email: string) {
 
 interface LandingProps {
   onLogin: (email: string, password: string) => Promise<void>;
-  onConfirmLogin?: (email: string, code: string) => Promise<void>;
   onRegister: (payload: { name: string; email: string; password: string }) => Promise<void>;
-  onResendLoginVerification?: (email: string) => Promise<void>;
-  onVerifyEmail?: (email: string, code: string) => Promise<void>;
-  onResendVerification?: (email: string) => Promise<void>;
   onRequestPasswordReset?: (email: string) => Promise<void>;
   onResetPassword?: (email: string, code: string, password: string) => Promise<void>;
-  loginChallenge?: VerificationChallenge | null;
-  verificationChallenge?: VerificationChallenge | null;
-  passwordResetChallenge?: VerificationChallenge | null;
+  passwordResetChallenge?: PasswordResetChallenge | null;
   isLoading?: boolean;
   error?: string | null;
   notice?: string | null;
@@ -39,45 +33,21 @@ interface LandingProps {
 
 export function Landing({
   onLogin,
-  onConfirmLogin,
   onRegister,
-  onResendLoginVerification,
-  onVerifyEmail,
-  onResendVerification,
   onRequestPasswordReset,
   onResetPassword,
-  loginChallenge,
-  verificationChallenge,
   passwordResetChallenge,
   isLoading,
   error,
   notice,
 }: LandingProps) {
-  const [mode, setMode] = useState<'login' | 'login-verify' | 'register' | 'verify' | 'forgot' | 'reset'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'reset'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!loginChallenge) return;
-    setMode('login-verify');
-    setEmail(loginChallenge.email);
-    setCode('');
-    setLocalError(null);
-  }, [loginChallenge]);
-
-  useEffect(() => {
-    if (!verificationChallenge) return;
-    setMode('verify');
-    setEmail(verificationChallenge.email);
-    setCode('');
-    setPassword('');
-    setConfirmPassword('');
-    setLocalError(null);
-  }, [verificationChallenge]);
 
   useEffect(() => {
     if (!passwordResetChallenge) return;
@@ -89,14 +59,7 @@ export function Landing({
     setLocalError(null);
   }, [passwordResetChallenge]);
 
-  const activeChallenge =
-    mode === 'login-verify'
-      ? loginChallenge
-      : mode === 'verify'
-        ? verificationChallenge
-        : mode === 'reset'
-          ? passwordResetChallenge
-          : null;
+  const activeChallenge = mode === 'reset' ? passwordResetChallenge : null;
   const expiresLabel = activeChallenge
     ? new Date(activeChallenge.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : null;
@@ -196,28 +159,20 @@ export function Landing({
             <h2 className="text-3xl font-bold tracking-tight text-on-surface mb-2">
               {mode === 'login'
                 ? 'Welcome back'
-                : mode === 'login-verify'
-                  ? 'Enter sign-in code'
                 : mode === 'register'
                   ? 'Create your account'
-                  : mode === 'verify'
-                    ? 'Verify your email'
-                    : mode === 'forgot'
-                      ? 'Reset your passcode'
-                      : 'Enter reset code'}
+                  : mode === 'forgot'
+                    ? 'Reset your passcode'
+                    : 'Enter reset code'}
             </h2>
             <p className="text-secondary text-sm">
               {mode === 'login'
                 ? 'Enter your credentials to access the engine.'
-                : mode === 'login-verify'
-                  ? `Enter the 6-digit code sent to ${loginChallenge?.email ?? email} to finish signing in.`
                 : mode === 'register'
                   ? 'Register with a real email address to unlock your workspace.'
-                  : mode === 'verify'
-                    ? `Enter the 6-digit code sent to ${verificationChallenge?.email ?? email}.`
-                    : mode === 'forgot'
-                      ? 'Enter your email and we will send a verification code to reset your passcode.'
-                      : `Enter the reset code sent to ${passwordResetChallenge?.email ?? email} and choose a new passcode.`}
+                  : mode === 'forgot'
+                    ? 'Enter your email and we will send a verification code to reset your passcode.'
+                    : `Enter the reset code sent to ${passwordResetChallenge?.email ?? email} and choose a new passcode.`}
             </p>
           </div>
 
@@ -234,30 +189,6 @@ export function Landing({
 
               if (mode === 'login') {
                 await onLogin(email, password);
-                return;
-              }
-              if (mode === 'login-verify') {
-                if (!code.trim() || code.trim().length !== 6) {
-                  setLocalError('Please enter the 6-digit sign-in code.');
-                  return;
-                }
-                if (!onConfirmLogin) {
-                  setLocalError('Sign-in verification is unavailable in this client.');
-                  return;
-                }
-                await onConfirmLogin(email, code);
-                return;
-              }
-              if (mode === 'verify') {
-                if (!code.trim() || code.trim().length !== 6) {
-                  setLocalError('Please enter the 6-digit verification code.');
-                  return;
-                }
-                if (!onVerifyEmail) {
-                  setLocalError('Email verification is unavailable in this client.');
-                  return;
-                }
-                await onVerifyEmail(email, code);
                 return;
               }
               if (mode === 'forgot') {
@@ -313,26 +244,22 @@ export function Landing({
             ) : null}
             <div className="space-y-2">
               <label className="text-sm font-semibold text-secondary ml-1">
-                {mode === 'forgot' || mode === 'reset' ? 'Account Email' : 'Verified Email'}
+                {mode === 'forgot' || mode === 'reset' ? 'Account Email' : 'Email'}
               </label>
               <input 
                 type="email" 
                 placeholder="name@school.edu"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                disabled={mode === 'login-verify' || mode === 'verify' || mode === 'reset'}
+                disabled={mode === 'reset'}
                 className="w-full h-12 bg-surface-container border border-outline-variant rounded-lg px-4 text-on-surface placeholder:text-secondary/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
               />
             </div>
-            {mode === 'login-verify' || mode === 'verify' || mode === 'reset' ? (
+            {mode === 'reset' ? (
               <div className="space-y-2">
                 <div className="flex justify-between items-center px-1">
                   <label className="text-sm font-semibold text-secondary">
-                    {mode === 'login-verify'
-                      ? 'Sign-In Code'
-                      : mode === 'verify'
-                        ? 'Verification Code'
-                        : 'Reset Code'}
+                    Reset Code
                   </label>
                   {expiresLabel ? (
                     <span className="text-xs font-medium text-secondary">
@@ -351,8 +278,7 @@ export function Landing({
                 />
                 {previewCode ? (
                   <div className="rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-on-surface">
-                    Local dev mode: your{' '}
-                    {mode === 'login-verify' ? 'sign-in' : mode === 'verify' ? 'verification' : 'reset'} code is{' '}
+                    Local dev mode: your reset code is{' '}
                     <span className="font-black tracking-[0.25em]">{previewCode}</span>
                   </div>
                 ) : null}
@@ -430,19 +356,15 @@ export function Landing({
                 ? 'Authenticating...'
                 : mode === 'login'
                   ? 'Sign In'
-                  : mode === 'login-verify'
-                    ? 'Confirm Sign In'
                   : mode === 'register'
                     ? 'Create Account'
-                    : mode === 'verify'
-                      ? 'Confirm Email'
-                      : mode === 'forgot'
-                        ? 'Send Reset Code'
-                        : 'Set New Passcode'}
+                    : mode === 'forgot'
+                      ? 'Send Reset Code'
+                      : 'Set New Passcode'}
               <ArrowRight className="w-4 h-4" />
             </button>
 
-            {mode === 'login-verify' || mode === 'verify' || mode === 'reset' ? (
+            {mode === 'reset' ? (
               <div className="flex items-center justify-between gap-3 text-sm">
                 <button
                   type="button"
@@ -465,14 +387,6 @@ export function Landing({
                       setLocalError('Please enter a valid email address.');
                       return;
                     }
-                    if (mode === 'login-verify' && onResendLoginVerification) {
-                      await onResendLoginVerification(email);
-                      return;
-                    }
-                    if (mode === 'verify' && onResendVerification) {
-                      await onResendVerification(email);
-                      return;
-                    }
                     if (onRequestPasswordReset) {
                       await onRequestPasswordReset(email);
                       return;
@@ -490,15 +404,11 @@ export function Landing({
           <p className="mt-10 text-center text-sm text-secondary">
             {mode === 'login'
               ? 'New to the circle?'
-              : mode === 'login-verify'
-                ? 'Need another sign-in attempt?'
               : mode === 'register'
                 ? 'Already have an account?'
-                : mode === 'verify'
-                  ? 'Verified already?'
-                  : mode === 'forgot'
-                    ? 'Remembered your passcode?'
-                    : 'Password updated already?'}{' '}
+                : mode === 'forgot'
+                  ? 'Remembered your passcode?'
+                  : 'Password updated already?'}{' '}
             <button
               type="button"
               onClick={() => {
@@ -510,7 +420,7 @@ export function Landing({
               }}
               className="text-primary font-bold hover:underline"
             >
-              {mode === 'login' ? 'Register account' : mode === 'login-verify' ? 'Back to sign in' : 'Back to sign in'}
+              {mode === 'login' ? 'Register account' : 'Back to sign in'}
             </button>
           </p>
         </div>
