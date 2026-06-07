@@ -1,5 +1,13 @@
-import { DebatePhase } from '../orchestration/phases';
-import { AgentCall, AgentCallResult } from '../orchestration/stateMachine';
+/**
+ * Judge Agent - 辩论裁判 AI Agent
+ *
+ * 负责在不同辩论阶段提供裁判服务：
+ * - opening: 开场白、规则说明
+ * - deliberation: 评议双方论点
+ * - feedback: 最终裁决与反馈
+ */
+
+export type JudgePhase = 'judge_opening' | 'judge_deliberation' | 'judge_feedback';
 
 export interface JudgeOpeningInput {
   topic: string;
@@ -32,18 +40,23 @@ export interface JudgeDecision {
   improvementSuggestions: string[];
 }
 
+export interface JudgeAgentResult {
+  agentRole: 'judge';
+  content: string;
+  timestamp: number;
+}
+
 export async function callJudgeAgent(
-  agentCall: AgentCall,
-  phase: DebatePhase,
+  phase: JudgePhase,
   input: JudgeOpeningInput | JudgeDeliberationInput | JudgeFeedbackInput
-): Promise<AgentCallResult> {
+): Promise<JudgeAgentResult> {
   switch (phase) {
     case 'judge_opening':
-      return handleJudgeOpening(agentCall, input as JudgeOpeningInput);
+      return handleJudgeOpening(input as JudgeOpeningInput);
     case 'judge_deliberation':
-      return handleJudgeDeliberation(agentCall, input as JudgeDeliberationInput);
+      return handleJudgeDeliberation(input as JudgeDeliberationInput);
     case 'judge_feedback':
-      return handleJudgeFeedback(agentCall, input as JudgeFeedbackInput);
+      return handleJudgeFeedback(input as JudgeFeedbackInput);
     default:
       return {
         agentRole: 'judge',
@@ -53,10 +66,7 @@ export async function callJudgeAgent(
   }
 }
 
-async function handleJudgeOpening(
-  agentCall: AgentCall,
-  input: JudgeOpeningInput
-): Promise<AgentCallResult> {
+async function handleJudgeOpening(input: JudgeOpeningInput): Promise<JudgeAgentResult> {
   const { topic, format, timeLimitMinutes } = input;
 
   const content = `[JUDGE OPENING] 欢迎来到本次辩论赛。
@@ -82,9 +92,8 @@ async function handleJudgeOpening(
 }
 
 async function handleJudgeDeliberation(
-  agentCall: AgentCall,
   input: JudgeDeliberationInput
-): Promise<AgentCallResult> {
+): Promise<JudgeAgentResult> {
   const { topic, transcript, studentSide } = input;
 
   const proArgs = extractArguments(transcript, 'pro');
@@ -115,10 +124,7 @@ ${conArgs.map((a, i) => `${i + 1}. ${a}`).join('\n') || '（无明显论点）'}
   };
 }
 
-async function handleJudgeFeedback(
-  agentCall: AgentCall,
-  input: JudgeFeedbackInput
-): Promise<AgentCallResult> {
+async function handleJudgeFeedback(input: JudgeFeedbackInput): Promise<JudgeAgentResult> {
   const {
     winner,
     reason,
@@ -168,7 +174,9 @@ function simulateThinking(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function createMockJudgeInput(phase: DebatePhase): JudgeOpeningInput | JudgeDeliberationInput | JudgeFeedbackInput {
+export function createMockJudgeInput(
+  phase: JudgePhase
+): JudgeOpeningInput | JudgeDeliberationInput | JudgeFeedbackInput {
   switch (phase) {
     case 'judge_opening':
       return {

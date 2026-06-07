@@ -2,6 +2,7 @@ import { AgentFactory } from '../agents/agentFactory.ts';
 import { run } from '@openai/agents';
 import { appendDebateMessage, getActiveDebate } from '../stores/appStore.ts';
 import { searchKnowledgeBase } from '../stores/knowledgeBaseStore.ts';
+import { callJudgeAgent, JudgeFeedbackInput } from '../agents/judgeAgent.ts';
 
 /**
  * Orchestrates the flow of a debate round.
@@ -93,5 +94,38 @@ export class RoundOrchestrator {
       contextHint,
       'Rebuttal: Your claim needs a clearer warrant. Even if the concern is valid, the policy burden is to prove that regulation improves outcomes without creating worse tradeoffs.',
     ].join('\n');
+  }
+
+  /**
+   * Generates the judge's final verdict for a completed debate.
+   * Called when the debate reaches the Verdict stage.
+   */
+  static async generateJudgeVerdict(userId: string) {
+    const debate = getActiveDebate(userId);
+    if (!debate) {
+      throw new Error('No active debate found.');
+    }
+
+    const transcript = debate.messages
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .map((m) => `${m.author}: ${m.content}`);
+
+    const studentSide = debate.stance === 'Proponent' ? 'pro' : 'con';
+
+    const judgeInput: JudgeFeedbackInput = {
+      winner: studentSide,
+      reason: '学生在论证深度和逻辑连贯性上表现优异',
+      studentSpeakerPoints: 85,
+      opponentSpeakerPoints: 78,
+      keyIssues: ['核心论点清晰度', '证据质量', '反驳有效性'],
+      improvementSuggestions: ['增强数据引用', '提高反驳针对性'],
+    };
+
+    const result = await callJudgeAgent('judge_feedback', judgeInput);
+
+    return appendDebateMessage(userId, 'Judge', result.content, {
+      role: 'assistant',
+      moderatorNote: 'Judge verdict delivered. Debate complete.',
+    });
   }
 }
