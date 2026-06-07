@@ -16,7 +16,7 @@ const mockState = {
         time: '09:00 AM',
         content: 'Debate created.',
       },
-    ],
+    ] as Array<{ id: string; role: 'system' | 'user' | 'assistant'; author: string; time: string; content: string }>,
   },
   knowledgeResults: [
     {
@@ -45,21 +45,31 @@ const mockState = {
 };
 
 mock.module('../../src/server/stores/appStore.ts', () => ({
-  appendDebateMessage: (userId: string, author: string, content: string) => {
+  appendDebateMessage: (userId: string, author: string, content: string, options?: { role?: string; moderatorNote?: string | false }) => {
     mockState.appendedMessages.push({ userId, author, content });
-    const role = author === 'Student' ? 'user' : author.includes('Agent') ? 'assistant' : 'system';
+    const role = options?.role ?? (author === 'Student' ? 'user' : author.includes('Agent') ? 'assistant' : 'system');
+    const newMessages = [
+      ...mockState.activeDebate.messages,
+      {
+        id: `msg-${mockState.appendedMessages.length}`,
+        role,
+        author,
+        time: '09:01 AM',
+        content,
+      },
+    ];
+    if (options?.moderatorNote) {
+      newMessages.push({
+        id: `msg-mod-${mockState.appendedMessages.length}`,
+        role: 'system',
+        author: 'Moderator',
+        time: '09:01 AM',
+        content: options.moderatorNote,
+      });
+    }
     return {
       ...mockState.activeDebate,
-      messages: [
-        ...mockState.activeDebate.messages,
-        {
-          id: `msg-${mockState.appendedMessages.length}`,
-          role,
-          author,
-          time: '09:01 AM',
-          content,
-        },
-      ],
+      messages: newMessages,
     };
   },
   getActiveDebate: () => mockState.activeDebate,
@@ -181,5 +191,32 @@ describe('RoundOrchestrator', () => {
       author: 'Rival Agent A',
       content: expect.stringContaining('Mock Rival Agent A'),
     });
+  });
+
+  test('generateJudgeVerdict calls judge agent and records the verdict', async () => {
+    mockState.activeDebate.messages = [
+      ...mockState.activeDebate.messages,
+      { id: 'msg-1', role: 'user' as const, author: 'Student', time: '09:01 AM', content: 'My opening argument.' },
+      { id: 'msg-2', role: 'assistant' as const, author: 'Rival Agent A', time: '09:02 AM', content: 'Counter argument.' },
+    ];
+
+    const updatedDebate = await RoundOrchestrator.generateJudgeVerdict('user-1');
+
+    expect(mockState.appendedMessages.at(-1)).toMatchObject({
+      userId: 'user-1',
+      author: 'Judge',
+    });
+    const judgeMessage = updatedDebate.messages.find((m) => m.author === 'Judge');
+    expect(judgeMessage).toMatchObject({
+      role: 'assistant',
+      author: 'Judge',
+    });
+    expect(judgeMessage?.content).toContain('[JUDGE FEEDBACK]');
+  });
+
+  test('generateJudgeVerdict throws when no active debate exists', async () => {
+    mockState.activeDebate = null as unknown as typeof mockState.activeDebate;
+
+    expect(RoundOrchestrator.generateJudgeVerdict('user-1')).rejects.toThrow('No active debate found.');
   });
 });
