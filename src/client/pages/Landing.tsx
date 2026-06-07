@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { Swords, ArrowRight } from 'lucide-react';
+import { Swords, ArrowRight, Github } from 'lucide-react';
+import type { VerificationChallenge } from '@/shared/types';
 
 const STRICT_EMAIL_PATTERN =
   /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@(?=.{4,255}$)(?:(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)\.)+[A-Za-z]{2,63}$/;
@@ -13,22 +14,56 @@ function isValidEmailAddress(email: string) {
 
   const [, domain = ''] = normalized.split('@');
   const hostname = domain.replace(/\.[A-Za-z]{2,63}$/, '');
+
   return /[A-Za-z]/.test(hostname);
 }
 
 interface LandingProps {
   onLogin: (email: string, password: string) => Promise<void>;
   onRegister: (payload: { name: string; email: string; password: string }) => Promise<void>;
+  onRequestPasswordReset: (email: string) => Promise<void>;
+  onResetPassword: (email: string, code: string, password: string) => Promise<void>;
+  passwordResetChallenge?: VerificationChallenge | null;
   isLoading?: boolean;
   error?: string | null;
+  notice?: string | null;
 }
 
-export function Landing({ onLogin, onRegister, isLoading, error }: LandingProps) {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+export function Landing({
+  onLogin,
+  onRegister,
+  onRequestPasswordReset,
+  onResetPassword,
+  passwordResetChallenge,
+  isLoading,
+  error,
+  notice,
+}: LandingProps) {
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'reset'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!passwordResetChallenge) return;
+    setMode('reset');
+    setEmail(passwordResetChallenge.email);
+    setCode('');
+    setPassword('');
+    setConfirmPassword('');
+    setLocalError(null);
+  }, [passwordResetChallenge]);
+
+  const activeChallenge = mode === 'reset' ? passwordResetChallenge : null;
+  const expiresLabel = activeChallenge
+    ? new Date(activeChallenge.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : null;
+  const previewCode = mode === 'reset' && activeChallenge?.deliveryMethod === 'dev-log' ? activeChallenge.previewCode : null;
+
+  const message = localError ?? error;
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-background">
@@ -117,18 +152,30 @@ export function Landing({ onLogin, onRegister, isLoading, error }: LandingProps)
       <div className="flex-1 flex flex-col justify-center items-center px-6 py-12">
         <div className="w-full max-w-[420px]">
           <div className="mb-10 text-center md:text-left">
-            <h2 className="text-3xl font-bold tracking-tight text-on-surface mb-2">Welcome back</h2>
+            <h2 className="text-3xl font-bold tracking-tight text-on-surface mb-2">
+              {mode === 'login'
+                ? 'Welcome back'
+                : mode === 'register'
+                  ? 'Create your account'
+                  : mode === 'forgot'
+                      ? 'Reset your passcode'
+                      : 'Enter reset code'}
+            </h2>
             <p className="text-secondary text-sm">
               {mode === 'login'
                 ? 'Sign in directly with your email and password.'
-                : 'Create an account and enter the workspace immediately. No email verification step.'}
+                : mode === 'register'
+                  ? 'Create an account and enter the workspace immediately. No email verification step.'
+                  : mode === 'forgot'
+                      ? 'Enter your email and we will send a verification code to reset your passcode.'
+                      : `Enter the reset code sent to ${passwordResetChallenge?.email ?? email} and choose a new passcode.`}
             </p>
           </div>
 
           <form
             className="space-y-5"
-            onSubmit={async (event: React.FormEvent<HTMLFormElement>) => {
-              event.preventDefault();
+            onSubmit={async (e) => {
+              e.preventDefault();
               setLocalError(null);
 
               if (!isValidEmailAddress(email)) {
@@ -136,13 +183,28 @@ export function Landing({ onLogin, onRegister, isLoading, error }: LandingProps)
                 return;
               }
 
-              if (!password.trim()) {
-                setLocalError('Please enter your password.');
-                return;
-              }
-
               if (mode === 'login') {
                 await onLogin(email, password);
+                return;
+              }
+              if (mode === 'forgot') {
+                await onRequestPasswordReset(email);
+                return;
+              }
+              if (mode === 'reset') {
+                if (!code.trim() || code.trim().length !== 6) {
+                  setLocalError('Please enter the 6-digit reset code.');
+                  return;
+                }
+                if (password.trim().length < 8) {
+                  setLocalError('New passcode must be at least 8 characters.');
+                  return;
+                }
+                if (password !== confirmPassword) {
+                  setLocalError('Passcode confirmation does not match.');
+                  return;
+                }
+                await onResetPassword(email, code, password);
                 return;
               }
               if (!name.trim()) {
@@ -163,42 +225,112 @@ export function Landing({ onLogin, onRegister, isLoading, error }: LandingProps)
                   type="text"
                   placeholder="Your debate name"
                   value={name}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => setName(event.target.value)}
+                  onChange={(event) => setName(event.target.value)}
                   className="w-full h-12 bg-surface-container border border-outline-variant rounded-lg px-4 text-on-surface placeholder:text-secondary/30 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
                 />
               </div>
             ) : null}
             <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-secondary ml-1">Email</label>
+              <label className="text-xs font-bold uppercase tracking-widest text-secondary ml-1">
+                {mode === 'forgot' || mode === 'reset' ? 'Account Email' : 'Email'}
+              </label>
               <input 
                 type="email" 
-                  placeholder="name@example.edu"
+                placeholder="name@example.edu"
                 value={email}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => setEmail(event.target.value)}
+                onChange={(event) => setEmail(event.target.value)}
+                disabled={mode === 'reset'}
                 className="w-full h-12 bg-surface-container border border-outline-variant rounded-lg px-4 text-on-surface placeholder:text-secondary/30 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
               />
             </div>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center px-1">
-                <label className="text-xs font-bold uppercase tracking-widest text-secondary">Secret Key</label>
+            {mode === 'reset' ? (
+              <div className="space-y-2">
+                <div className="flex justify-between items-center px-1">
+                  <label className="text-xs font-bold uppercase tracking-widest text-secondary">
+                    Reset Code
+                  </label>
+                  {expiresLabel ? (
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-secondary">
+                      Expires {expiresLabel}
+                    </span>
+                  ) : null}
+                </div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="123456"
+                  value={code}
+                  onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="w-full h-12 bg-surface-container border border-outline-variant rounded-lg px-4 text-on-surface placeholder:text-secondary/30 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none tracking-[0.35em] text-center"
+                />
+                {previewCode ? (
+                  <div className="rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-on-surface">
+                    Local dev mode: your reset code is <span className="font-black tracking-[0.25em]">{previewCode}</span>
+                  </div>
+                ) : null}
               </div>
-              <input 
-                type="password" 
-                placeholder="••••••••"
-                value={password}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => setPassword(event.target.value)}
-                className="w-full h-12 bg-surface-container border border-outline-variant rounded-lg px-4 text-on-surface placeholder:text-secondary/30 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
-              />
-            </div>
+            ) : null}
+            {mode === 'login' || mode === 'register' || mode === 'reset' ? (
+              <>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center px-1">
+                    <label className="text-xs font-bold uppercase tracking-widest text-secondary">
+                      {mode === 'reset' ? 'New Passcode' : 'Secret Key'}
+                    </label>
+                    {mode === 'login' ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMode('forgot');
+                          setCode('');
+                          setPassword('');
+                          setConfirmPassword('');
+                          setLocalError(null);
+                        }}
+                        className="text-xs font-medium text-primary hover:underline"
+                      >
+                        Forgot Key?
+                      </button>
+                    ) : null}
+                  </div>
+                  <input 
+                    type="password" 
+                    placeholder={mode === 'reset' ? 'Choose a new passcode' : '••••••••'}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    className="w-full h-12 bg-surface-container border border-outline-variant rounded-lg px-4 text-on-surface placeholder:text-secondary/30 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                  />
+                </div>
+                {mode === 'reset' ? (
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-widest text-secondary ml-1">Confirm Passcode</label>
+                    <input
+                      type="password"
+                      placeholder="Repeat the new passcode"
+                      value={confirmPassword}
+                      onChange={(event) => setConfirmPassword(event.target.value)}
+                      className="w-full h-12 bg-surface-container border border-outline-variant rounded-lg px-4 text-on-surface placeholder:text-secondary/30 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                    />
+                  </div>
+                ) : (
+                  <label className="flex items-center gap-3 py-2 cursor-pointer group">
+                    <input type="checkbox" className="w-4 h-4 rounded border-outline-variant bg-surface-container text-primary focus:ring-primary/20" />
+                    <span className="text-sm text-secondary select-none group-hover:text-on-surface transition-colors">Remember session for 30 days</span>
+                  </label>
+                )}
+              </>
+            ) : null}
 
-            <label className="flex items-center gap-3 py-2 cursor-pointer group">
-              <input type="checkbox" className="w-4 h-4 rounded border-outline-variant bg-surface-container text-primary focus:ring-primary/20" />
-              <span className="text-sm text-secondary select-none group-hover:text-on-surface transition-colors">Remember session for 30 days</span>
-            </label>
+            {notice ? (
+              <div className="rounded-lg border border-tertiary/30 bg-tertiary/10 px-4 py-3 text-sm text-emerald-100">
+                {notice}
+              </div>
+            ) : null}
 
-            {localError ?? error ? (
+            {message ? (
               <div className="rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-red-200">
-                {localError ?? error}
+                {message}
               </div>
             ) : null}
 
@@ -207,9 +339,53 @@ export function Landing({ onLogin, onRegister, isLoading, error }: LandingProps)
               disabled={isLoading}
               className="w-full h-12 bg-primary text-on-primary font-bold rounded-lg hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {isLoading ? 'Authenticating...' : mode === 'login' ? 'Sign In' : 'Create Account'}
+              {isLoading
+                ? 'Authenticating...'
+                : mode === 'login'
+                  ? 'Sign In'
+                  : mode === 'login-verify'
+                    ? 'Confirm Sign In'
+                  : mode === 'register'
+                    ? 'Create Account'
+                    : mode === 'verify'
+                      ? 'Confirm Email'
+                      : mode === 'forgot'
+                        ? 'Send Reset Code'
+                        : 'Set New Passcode'}
               <ArrowRight className="w-4 h-4" />
             </button>
+
+            {mode === 'reset' ? (
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('login');
+                    setCode('');
+                    setPassword('');
+                    setConfirmPassword('');
+                    setLocalError(null);
+                  }}
+                  className="text-secondary hover:text-on-surface transition-colors"
+                >
+                  Back to sign in
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setLocalError(null);
+                    if (!isValidEmailAddress(email)) {
+                      setLocalError('Please enter a valid email address.');
+                      return;
+                    }
+                    await onRequestPasswordReset(email);
+                  }}
+                  className="text-primary font-bold hover:underline"
+                >
+                  Resend code
+                </button>
+              </div>
+            ) : null}
           </form>
 
           <div className="relative my-10">
@@ -232,18 +408,31 @@ export function Landing({ onLogin, onRegister, isLoading, error }: LandingProps)
               <span className="text-sm font-bold text-on-surface">Google</span>
             </button>
             <button className="h-12 flex items-center justify-center gap-3 border border-outline-variant rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors active:scale-[0.98]">
+              <Github className="w-5 h-5 text-on-surface" />
               <span className="text-sm font-bold text-on-surface">GitHub</span>
             </button>
           </div>
 
           <p className="mt-10 text-center text-sm text-secondary">
-            {mode === 'login' ? 'New to the circle?' : 'Already have an account?'}{' '}
+            {mode === 'login'
+              ? 'New to the circle?'
+              : mode === 'register'
+                ? 'Already have an account?'
+                : mode === 'forgot'
+                    ? 'Remembered your passcode?'
+                    : 'Password updated already?'}{' '}
             <button
               type="button"
-              onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+              onClick={() => {
+                setLocalError(null);
+                setCode('');
+                setPassword('');
+                setConfirmPassword('');
+                setMode(mode === 'login' ? 'register' : 'login');
+              }}
               className="text-primary font-bold hover:underline"
             >
-              {mode === 'login' ? 'Register account' : 'Sign in'}
+              {mode === 'login' ? 'Register account' : 'Back to sign in'}
             </button>
           </p>
         </div>

@@ -24,6 +24,7 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
+  emailVerified: boolean;
   title: string;
   streak: number;
   createdAt?: string;
@@ -37,6 +38,26 @@ export interface AuthSession {
 
 export interface AuthResponse {
   session: AuthSession;
+}
+
+export interface VerificationChallenge {
+  email: string;
+  expiresAt: string;
+  requiresVerification: true;
+  deliveryMethod?: 'email' | 'dev-log';
+  previewCode?: string;
+}
+
+export interface EmailVerificationResponse {
+  ok: true;
+  email: string;
+  verifiedAt: string;
+}
+
+export interface PasswordResetResponse {
+  ok: true;
+  email: string;
+  resetAt: string;
 }
 
 export interface DashboardStats {

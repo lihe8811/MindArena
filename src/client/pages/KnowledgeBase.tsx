@@ -1,11 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Eye, FileSearch, FileUp, RefreshCw, Scale, Search, Sparkles, Trash2 } from 'lucide-react';
-import type {
-  KnowledgeDocument,
-  KnowledgeDocumentDetail,
-  KnowledgeSearchResponse,
-  KnowledgeSearchSuggestion,
-} from '@/types';
+import { Eye, FileSearch, FileUp, RefreshCw, Scale, Search, Trash2 } from 'lucide-react';
+import type { KnowledgeDocument, KnowledgeDocumentDetail, KnowledgeSearchResponse } from '@/shared/types';
 
 interface KnowledgeBaseProps {
   documents: KnowledgeDocument[];
@@ -34,9 +29,9 @@ export function KnowledgeBase({
   searchResult,
   isSubmitting,
 }: KnowledgeBaseProps) {
-  const [entryTitle, setEntryTitle] = useState('');
-  const [entryCategory, setEntryCategory] = useState('General');
-  const [entryContent, setEntryContent] = useState('');
+  const [ruleTitle, setRuleTitle] = useState('');
+  const [ruleCategory, setRuleCategory] = useState('Rules');
+  const [ruleContent, setRuleContent] = useState('');
   const [fileTitle, setFileTitle] = useState('');
   const [fileCategory, setFileCategory] = useState('Uploaded File');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -53,19 +48,15 @@ export function KnowledgeBase({
     };
   }, [documents]);
 
-  const liveSuggestions = useMemo(() => rankDocumentsByName(query, documents).slice(0, 6), [documents, query]);
-
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <header>
         <h2 className="text-4xl font-bold tracking-tight text-on-surface">Knowledge Base</h2>
-        <p className="mt-2 text-secondary">
-          录入信息、上传资料并搜索最相近的名称。输入很短的关键词时，系统也会优先展示最相似的标题。
-        </p>
+        <p className="mt-2 text-secondary">上传规则、知识文档和资料文件，系统会解析、切块并写入本地向量数据库。</p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard label="条目数" value={String(stats.documentTotal)} />
+        <StatCard label="文档数" value={String(stats.documentTotal)} />
         <StatCard label="向量分块" value={String(stats.chunkTotal)} />
         <StatCard label="总词数" value={String(stats.wordTotal)} />
       </div>
@@ -74,38 +65,38 @@ export function KnowledgeBase({
         <section className="rounded-3xl border border-outline-variant bg-surface-container p-6">
           <div className="flex items-center gap-3">
             <Scale className="w-5 h-5 text-primary" />
-            <h3 className="text-xl font-bold text-on-surface">录入信息</h3>
+            <h3 className="text-xl font-bold text-on-surface">录入规则</h3>
           </div>
           <form
             className="mt-6 space-y-4"
-            onSubmit={async (event: React.FormEvent<HTMLFormElement>) => {
+            onSubmit={async (event) => {
               event.preventDefault();
               await onCreateRule({
-                title: entryTitle,
-                category: entryCategory,
-                content: entryContent,
+                title: ruleTitle,
+                category: ruleCategory,
+                content: ruleContent,
               });
-              setEntryTitle('');
-              setEntryCategory('General');
-              setEntryContent('');
+              setRuleTitle('');
+              setRuleCategory('Rules');
+              setRuleContent('');
             }}
           >
             <input
-              value={entryTitle}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) => setEntryTitle(event.target.value)}
-              placeholder="标题，例如 qww / Climate Policy / Debate Notes"
+              value={ruleTitle}
+              onChange={(event) => setRuleTitle(event.target.value)}
+              placeholder="规则标题"
               className="w-full rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-3 text-on-surface outline-none focus:border-primary"
             />
             <input
-              value={entryCategory}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) => setEntryCategory(event.target.value)}
-              placeholder="分类，例如 Books / Rules / Evidence"
+              value={ruleCategory}
+              onChange={(event) => setRuleCategory(event.target.value)}
+              placeholder="分类，例如 Debate Rules"
               className="w-full rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-3 text-on-surface outline-none focus:border-primary"
             />
             <textarea
-              value={entryContent}
-              onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setEntryContent(event.target.value)}
-              placeholder="输入书籍信息、规则、说明、摘要、注释或任意知识内容..."
+              value={ruleContent}
+              onChange={(event) => setRuleContent(event.target.value)}
+              placeholder="输入规则、约束、知识说明、标准流程等内容..."
               className="min-h-48 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-3 text-on-surface outline-none focus:border-primary"
             />
             <button
@@ -113,7 +104,7 @@ export function KnowledgeBase({
               disabled={isSubmitting}
               className="rounded-2xl bg-primary px-5 py-3 text-sm font-black text-on-primary disabled:opacity-60"
             >
-              保存信息并建立索引
+              保存并向量化规则
             </button>
           </form>
         </section>
@@ -125,7 +116,7 @@ export function KnowledgeBase({
           </div>
           <form
             className="mt-6 space-y-4"
-            onSubmit={async (event: React.FormEvent<HTMLFormElement>) => {
+            onSubmit={async (event) => {
               event.preventDefault();
               if (!selectedFile) return;
               await onUploadFile({
@@ -142,13 +133,13 @@ export function KnowledgeBase({
           >
             <input
               value={fileTitle}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) => setFileTitle(event.target.value)}
+              onChange={(event) => setFileTitle(event.target.value)}
               placeholder="可选标题，不填则使用文件名"
               className="w-full rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-3 text-on-surface outline-none focus:border-primary"
             />
             <input
               value={fileCategory}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) => setFileCategory(event.target.value)}
+              onChange={(event) => setFileCategory(event.target.value)}
               placeholder="分类，例如 Case Law / Policy / Rules"
               className="w-full rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-3 text-on-surface outline-none focus:border-primary"
             />
@@ -156,7 +147,7 @@ export function KnowledgeBase({
               id="knowledge-file-input"
               type="file"
               accept=".txt,.md,.markdown,.rules,.rule,.csv,.tsv,.yaml,.yml,.json,.xml,.html,.htm,.log,.sql,.pdf,.docx"
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(event.target.files?.[0] ?? null)}
+              onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
               className="block w-full rounded-2xl border border-dashed border-outline-variant bg-surface-container-low px-4 py-5 text-sm text-secondary"
             />
             <p className="text-sm text-secondary">
@@ -176,11 +167,11 @@ export function KnowledgeBase({
       <section className="rounded-3xl border border-outline-variant bg-surface-container p-6">
         <div className="flex items-center gap-3">
           <FileSearch className="w-5 h-5 text-primary" />
-          <h3 className="text-xl font-bold text-on-surface">搜索引擎</h3>
+          <h3 className="text-xl font-bold text-on-surface">语义检索</h3>
         </div>
         <form
           className="mt-6 flex flex-col md:flex-row gap-3"
-          onSubmit={async (event: React.FormEvent<HTMLFormElement>) => {
+          onSubmit={async (event) => {
             event.preventDefault();
             await onSearch(query);
           }}
@@ -189,8 +180,8 @@ export function KnowledgeBase({
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary" />
             <input
               value={query}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) => setQuery(event.target.value)}
-              placeholder="输入书名、关键词或模糊片段，例如 qw"
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="例如：cross examination 的评分规则是什么？"
               className="w-full rounded-2xl border border-outline-variant bg-surface-container-low py-3 pl-11 pr-4 text-on-surface outline-none focus:border-primary"
             />
           </div>
@@ -203,64 +194,11 @@ export function KnowledgeBase({
           </button>
         </form>
 
-        {query.trim() ? (
-          <div className="mt-5 rounded-2xl border border-outline-variant bg-surface-container-low p-4">
-            <div className="flex items-center gap-2 text-sm font-bold text-on-surface">
-              <Sparkles className="w-4 h-4 text-primary" />
-              实时相似名称建议
-            </div>
-            <p className="mt-2 text-sm text-secondary">
-              会优先看标题、文件名和分类的相似度，所以像输入 `qw` 时，也能尽量给出最接近的名字。
-            </p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              {liveSuggestions.length > 0 ? (
-                liveSuggestions.map((suggestion: KnowledgeSearchSuggestion) => (
-                  <button
-                    key={`live-${suggestion.documentId}`}
-                    type="button"
-                    onClick={() => {
-                      setQuery(suggestion.title);
-                      void onSearch(suggestion.title);
-                    }}
-                    className="rounded-full border border-outline-variant px-4 py-2 text-left text-sm text-on-surface transition hover:border-primary hover:text-primary"
-                  >
-                    {suggestion.title}
-                    <span className="ml-2 text-xs text-secondary">{suggestion.category}</span>
-                  </button>
-                ))
-              ) : (
-                <p className="text-sm text-secondary">当前还没有足够接近的名称，试试完整一点的词或先录入一些资料。</p>
-              )}
-            </div>
-          </div>
-        ) : null}
-
         {searchResult ? (
           <div className="mt-6 space-y-4">
             <p className="text-sm text-secondary">
               查询 “{searchResult.query}” 命中 {searchResult.total} 条结果
             </p>
-            {searchResult.suggestions.length > 0 ? (
-              <div className="rounded-2xl border border-outline-variant bg-surface-container-low p-4">
-                <p className="text-sm font-bold text-on-surface">服务端相似名称</p>
-                <div className="mt-3 flex flex-wrap gap-3">
-                  {searchResult.suggestions.map((suggestion) => (
-                    <button
-                      key={`server-${suggestion.documentId}`}
-                      type="button"
-                      onClick={() => {
-                        setQuery(suggestion.title);
-                        void onSearch(suggestion.title);
-                      }}
-                      className="rounded-full border border-outline-variant px-4 py-2 text-sm text-on-surface transition hover:border-primary hover:text-primary"
-                    >
-                      {suggestion.title}
-                      <span className="ml-2 text-xs text-secondary">{suggestion.category}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
             {searchResult.results.map((result) => (
               <article key={result.id} className="rounded-2xl border border-outline-variant bg-surface-container-low p-5">
                 <div className="flex flex-wrap items-center gap-3 text-xs">
@@ -270,27 +208,8 @@ export function KnowledgeBase({
                     {result.sourceType === 'rule' ? '规则' : '文件'}
                   </span>
                   <span className="text-secondary">score {result.score}</span>
-                  <span className="rounded-full border border-outline-variant px-2 py-1 text-secondary">
-                    {result.matchedBy === 'title'
-                      ? '标题匹配'
-                      : result.matchedBy === 'category'
-                        ? '分类匹配'
-                        : result.matchedBy === 'hybrid'
-                          ? '混合匹配'
-                          : '内容匹配'}
-                  </span>
                 </div>
                 <p className="mt-3 text-sm leading-6 text-on-surface">{result.excerpt}</p>
-                <div className="mt-4">
-                  <button
-                    type="button"
-                    onClick={() => void onOpenDocument(result.documentId)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-outline-variant px-4 py-2 text-sm font-bold text-on-surface"
-                  >
-                    <Eye className="w-4 h-4" />
-                    打开条目
-                  </button>
-                </div>
               </article>
             ))}
           </div>
@@ -431,89 +350,4 @@ function StatCard({ label, value }: { label: string; value: string }) {
       <p className="mt-3 text-3xl font-black text-on-surface">{value}</p>
     </div>
   );
-}
-
-function rankDocumentsByName(query: string, documents: KnowledgeDocument[]): KnowledgeSearchSuggestion[] {
-  const trimmed = normalizeSearchText(query);
-  if (!trimmed) return [];
-
-  return documents
-    .map((document) => {
-      const score = Math.max(
-        computeFuzzyTextScore(trimmed, document.title),
-        computeFuzzyTextScore(trimmed, document.fileName ?? ''),
-        computeFuzzyTextScore(trimmed, document.category),
-      );
-
-      return {
-        documentId: document.id,
-        title: document.title,
-        category: document.category,
-        score,
-      };
-    })
-    .filter((item) => item.score >= 0.28)
-    .sort((left, right) => right.score - left.score || left.title.localeCompare(right.title));
-}
-
-function normalizeSearchText(text: string) {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fa5\s]/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function computeFuzzyTextScore(query: string, candidate: string) {
-  const normalizedQuery = normalizeSearchText(query);
-  const normalizedCandidate = normalizeSearchText(candidate);
-
-  if (!normalizedQuery || !normalizedCandidate) return 0;
-  if (normalizedQuery === normalizedCandidate) return 1;
-  if (normalizedCandidate.startsWith(normalizedQuery)) {
-    return Math.max(0.92, 1 - (normalizedCandidate.length - normalizedQuery.length) * 0.02);
-  }
-  if (normalizedCandidate.includes(normalizedQuery)) {
-    return 0.84;
-  }
-  if (isSubsequence(normalizedQuery, normalizedCandidate)) {
-    return 0.72;
-  }
-
-  const candidateWindow = normalizedCandidate.slice(0, Math.max(normalizedQuery.length + 2, 2));
-  const distance = levenshteinDistance(normalizedQuery, candidateWindow);
-  return Math.max(0, 1 - distance / Math.max(normalizedQuery.length, candidateWindow.length, 1)) * 0.78;
-}
-
-function isSubsequence(query: string, candidate: string) {
-  let cursor = 0;
-  for (const character of candidate) {
-    if (character === query[cursor]) {
-      cursor += 1;
-      if (cursor === query.length) return true;
-    }
-  }
-  return false;
-}
-
-function levenshteinDistance(left: string, right: string) {
-  if (!left) return right.length;
-  if (!right) return left.length;
-
-  const dp = Array.from({ length: left.length + 1 }, () => new Array<number>(right.length + 1).fill(0));
-  for (let row = 0; row <= left.length; row += 1) dp[row][0] = row;
-  for (let column = 0; column <= right.length; column += 1) dp[0][column] = column;
-
-  for (let row = 1; row <= left.length; row += 1) {
-    for (let column = 1; column <= right.length; column += 1) {
-      const cost = left[row - 1] === right[column - 1] ? 0 : 1;
-      dp[row][column] = Math.min(
-        dp[row - 1][column] + 1,
-        dp[row][column - 1] + 1,
-        dp[row - 1][column - 1] + cost,
-      );
-    }
-  }
-
-  return dp[left.length][right.length];
 }
