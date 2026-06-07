@@ -284,7 +284,15 @@ export function registerUser(input: { name: string; email: string; password: str
   }
 
   if (existingUser) {
-    throw new Error('This email is already registered but not yet verified. Request a new code to continue.');
+    const verificationExpired = existingUser.verification?.expiresAt
+      ? new Date(existingUser.verification.expiresAt).getTime() < Date.now()
+      : true;
+
+    if (!verificationExpired) {
+      throw new Error('This email is already registered but not yet verified. Request a new code to continue.');
+    }
+
+    store.users = store.users.filter((user) => user.email !== email);
   }
 
   const user: StoredUser = {
