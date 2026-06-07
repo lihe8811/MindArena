@@ -1,13 +1,10 @@
 import {
   BarChart2,
-  Bell,
   HelpCircle,
   History,
   Home,
   LogOut,
-  Menu,
   CirclePlay,
-  Search,
   Settings,
   Swords,
   X,
@@ -22,6 +19,7 @@ interface SidebarProps {
   currentView: View;
   onViewChange: (view: View) => void;
   onLogout: () => void;
+  onSettingsClick?: () => void;
   user: UserProfile | null;
   hasActiveDebate: boolean;
   isMobileOpen?: boolean;
@@ -32,6 +30,7 @@ function NavContent({
   currentView,
   onViewChange,
   onLogout,
+  onSettingsClick,
   user,
   hasActiveDebate,
 }: Omit<SidebarProps, 'isMobileOpen' | 'onCloseMobile'>) {
@@ -102,6 +101,13 @@ function NavContent({
           <HelpCircle className="w-5 h-5" /> Help
         </button>
         <button
+          type="button"
+          onClick={onSettingsClick}
+          className="w-full flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-high/50 hover:text-on-surface transition-all rounded-lg font-sans text-sm tracking-tight"
+        >
+          <Settings className="w-5 h-5" /> Settings
+        </button>
+        <button
           onClick={onLogout}
           className="w-full flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-high/50 hover:text-on-surface transition-all rounded-lg font-sans text-sm tracking-tight"
         >
@@ -116,6 +122,7 @@ export function Sidebar({
   currentView,
   onViewChange,
   onLogout,
+  onSettingsClick,
   user,
   hasActiveDebate,
   isMobileOpen = false,
@@ -123,11 +130,12 @@ export function Sidebar({
 }: SidebarProps) {
   return (
     <>
-      <aside className="fixed left-0 top-0 bottom-0 hidden md:flex flex-col pt-14 bg-surface-container-lowest h-screen w-64 border-r border-outline-variant z-40">
+      <aside className="fixed left-0 top-0 bottom-0 hidden md:flex flex-col bg-surface-container-lowest h-screen w-64 border-r border-outline-variant z-40">
         <NavContent
           currentView={currentView}
           onViewChange={onViewChange}
           onLogout={onLogout}
+          onSettingsClick={onSettingsClick}
           user={user}
           hasActiveDebate={hasActiveDebate}
         />
@@ -160,6 +168,7 @@ export function Sidebar({
                 currentView={currentView}
                 onViewChange={onViewChange}
                 onLogout={onLogout}
+                onSettingsClick={onSettingsClick}
                 user={user}
                 hasActiveDebate={hasActiveDebate}
               />
@@ -168,64 +177,5 @@ export function Sidebar({
         </div>
       ) : null}
     </>
-  );
-}
-
-interface TopBarProps {
-  onSearch?: (query: string) => void;
-  title: string;
-  subtitle?: string;
-  user: UserProfile | null;
-  onToggleSidebar?: () => void;
-  onNotificationClick?: () => void;
-  onSettingsClick?: () => void;
-}
-
-export function TopBar({ onSearch, title, subtitle, user, onToggleSidebar, onNotificationClick, onSettingsClick }: TopBarProps) {
-  return (
-    <header className="bg-background/80 backdrop-blur-md fixed top-0 left-0 right-0 z-50 border-b border-outline-variant flex justify-between items-center w-full px-6 h-14">
-      <div className="flex items-center gap-4 md:gap-8">
-        <button
-          type="button"
-          onClick={onToggleSidebar}
-          className="md:hidden p-2 text-secondary hover:bg-surface-container-high hover:text-on-surface rounded-full transition-all"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-        <div className="hidden md:block">
-          <h1 className="text-lg font-bold tracking-tighter text-on-surface">{title}</h1>
-          {subtitle ? <p className="text-xs text-secondary">{subtitle}</p> : null}
-        </div>
-        <div className="relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary w-4 h-4 transition-colors group-focus-within:text-primary" />
-          <input
-            type="text"
-            placeholder="Search the workspace..."
-            className="bg-surface-container-low border border-outline-variant rounded-full py-1.5 pl-10 pr-4 text-xs w-40 md:w-64 focus:ring-1 focus:ring-primary focus:border-primary transition-all outline-none text-on-surface placeholder:text-secondary/50"
-            onChange={(e) => onSearch?.(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <button
-          type="button"
-          aria-label="Notifications"
-          onClick={onNotificationClick}
-          className="p-2 text-secondary hover:bg-surface-container-high hover:text-on-surface rounded-full transition-all"
-        >
-          <Bell className="w-5 h-5" />
-        </button>
-        <button
-          type="button"
-          aria-label="Settings"
-          onClick={onSettingsClick}
-          className="hidden md:inline-flex p-2 text-secondary hover:bg-surface-container-high hover:text-on-surface rounded-full transition-all"
-        >
-          <Settings className="w-5 h-5" />
-        </button>
-        <StudentAvatar variant={3} className="h-8 w-8 cursor-pointer hover:ring-2 ring-primary/20 transition-all" />
-      </div>
-    </header>
   );
 }
