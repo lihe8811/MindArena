@@ -19,7 +19,7 @@
 - [ ] Coordinate with [@Hallie](https://github.com/Hallie-Lunalg) on the client contract for advancing a round and submitting student input.
 
 ## Suggested Verification
-
+    
 - `bun run lint`
 - `bun run build`
 - Manual dev flow through `bun run dev:all`, client on `3000`, server on `3001`.
