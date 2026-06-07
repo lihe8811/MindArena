@@ -97,6 +97,61 @@ export class RoundOrchestrator {
   }
 
   /**
+   * Generates opening statements for the other three debaters after the user
+   * chooses their character. Each remaining participant says at least one sentence.
+   */
+  static async generateOpeningStatements(userId: string) {
+    const debate = getActiveDebate(userId);
+    if (!debate) {
+      throw new Error('No active debate found.');
+    }
+
+    const hasNonSystem = debate.messages.some((m) => m.role !== 'system');
+    if (hasNonSystem) {
+      return debate;
+    }
+
+    const userRole = debate.speakerRole ?? (debate.stance === 'Opponent' ? 'con1' : 'pro1');
+    const allParticipants = [
+      { id: 'pro1', label: 'pro1', side: 'Proponent' as const, speakerOrder: 1 },
+      { id: 'pro2', label: 'pro2', side: 'Proponent' as const, speakerOrder: 2 },
+      { id: 'con1', label: 'con1', side: 'Opponent' as const, speakerOrder: 1 },
+      { id: 'con2', label: 'con2', side: 'Opponent' as const, speakerOrder: 2 },
+    ];
+
+    const otherParticipants = allParticipants.filter((p) => p.id !== userRole);
+
+    for (const participant of otherParticipants) {
+      const opening = this.buildMockOpeningStatement(participant, debate.topic);
+      appendDebateMessage(userId, participant.label, opening, {
+        role: 'assistant',
+        moderatorNote: false,
+      });
+    }
+
+    return getActiveDebate(userId)!;
+  }
+
+  private static buildMockOpeningStatement(
+    participant: { id: string; label: string; side: 'Proponent' | 'Opponent'; speakerOrder: number },
+    topic: string,
+  ) {
+    if (participant.id === 'pro1') {
+      return `As the first proponent speaker, I argue that "${topic}" is a position grounded in reason and evidence.`;
+    }
+    if (participant.id === 'pro2') {
+      return `Joining my teammate, ${participant.label} reinforces that "${topic}" is well-supported by the facts at hand.`;
+    }
+    if (participant.id === 'con1') {
+      return `As the first opponent, I must reject "${topic}" because the claimed benefits do not outweigh the clear risks.`;
+    }
+    if (participant.id === 'con2') {
+      return `${participant.label} stands with the opposition: "${topic}" would create unintended consequences we cannot ignore.`;
+    }
+    return `${participant.label} enters the debate on the ${participant.side.toLowerCase()} side regarding "${topic}".`;
+  }
+
+  /**
    * Generates the judge's final verdict for a completed debate.
    * Called when the debate reaches the Verdict stage.
    */

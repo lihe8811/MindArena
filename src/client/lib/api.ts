@@ -4,6 +4,7 @@ import type {
   AuthResponse,
   DebateSetup,
   UserSettings,
+  VerificationChallenge,
 } from '@/shared/types';
 
 const AUTH_TOKEN_KEY = 'mindarena.auth.token';
@@ -55,23 +56,58 @@ export function getBootstrap() {
 }
 
 export async function register(payload: { name: string; email: string; password: string }) {
-  const response = await request<AuthResponse>('/api/session/register', {
+  const response = await request<VerificationChallenge>('/api/session/register', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+
+  return response;
+}
+
+export async function login(email: string, password: string) {
+  const response = await request<VerificationChallenge>('/api/session/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+
+  return response;
+}
+
+export async function verifyEmail(email: string, code: string) {
+  const response = await request<{ ok: true; email: string; verifiedAt: string }>('/api/session/verify-email', {
+    method: 'POST',
+    body: JSON.stringify({ email, code }),
+  });
+
+  return response;
+}
+
+export async function resendVerification(email: string) {
+  const response = await request<VerificationChallenge>('/api/session/resend-verification', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+
+  return response;
+}
+
+export async function confirmLogin(email: string, code: string) {
+  const response = await request<AuthResponse>('/api/session/confirm-login', {
+    method: 'POST',
+    body: JSON.stringify({ email, code }),
   });
 
   setStoredToken(response.session.token);
   return response.session;
 }
 
-export async function login(email: string, password: string) {
-  const response = await request<AuthResponse>('/api/session/login', {
+export async function resendLoginCode(email: string) {
+  const response = await request<VerificationChallenge>('/api/session/resend-login-code', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email }),
   });
 
-  setStoredToken(response.session.token);
-  return response.session;
+  return response;
 }
 
 export async function logout() {

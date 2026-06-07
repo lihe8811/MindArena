@@ -6,6 +6,7 @@ const mockState = {
     id: 'debate-1',
     topic: 'Resolved: recommendation algorithms should be regulated.',
     stance: 'Proponent' as const,
+    speakerRole: 'pro1' as const,
     rigor: 4,
     stage: 'Constructive',
     messages: [
@@ -47,19 +48,16 @@ const mockState = {
 mock.module('../../src/server/stores/appStore.ts', () => ({
   appendDebateMessage: (userId: string, author: string, content: string, options?: { role?: string; moderatorNote?: string | false }) => {
     mockState.appendedMessages.push({ userId, author, content });
-    const role = options?.role ?? (author === 'Student' ? 'user' : author.includes('Agent') ? 'assistant' : 'system');
-    const newMessages = [
-      ...mockState.activeDebate.messages,
-      {
-        id: `msg-${mockState.appendedMessages.length}`,
-        role,
-        author,
-        time: '09:01 AM',
-        content,
-      },
-    ];
+    const role = (options?.role ?? (author === 'Student' ? 'user' : author.includes('Agent') ? 'assistant' : 'system')) as 'system' | 'user' | 'assistant';
+    mockState.activeDebate.messages.push({
+      id: `msg-${mockState.appendedMessages.length}`,
+      role,
+      author,
+      time: '09:01 AM',
+      content,
+    });
     if (options?.moderatorNote) {
-      newMessages.push({
+      mockState.activeDebate.messages.push({
         id: `msg-mod-${mockState.appendedMessages.length}`,
         role: 'system',
         author: 'Moderator',
@@ -69,7 +67,7 @@ mock.module('../../src/server/stores/appStore.ts', () => ({
     }
     return {
       ...mockState.activeDebate,
-      messages: newMessages,
+      messages: [...mockState.activeDebate.messages],
     };
   },
   getActiveDebate: () => mockState.activeDebate,
@@ -218,5 +216,49 @@ describe('RoundOrchestrator', () => {
     mockState.activeDebate = null as unknown as typeof mockState.activeDebate;
 
     expect(RoundOrchestrator.generateJudgeVerdict('user-1')).rejects.toThrow('No active debate found.');
+  });
+
+  test('generateOpeningStatements appends one sentence for each of the other three debaters', async () => {
+    mockState.activeDebate = {
+      id: 'debate-1',
+      topic: 'Resolved: recommendation algorithms should be regulated.',
+      stance: 'Proponent' as const,
+      rigor: 4,
+      stage: 'Constructive',
+      speakerRole: 'pro1',
+      messages: [
+        { id: 'msg-system', role: 'system' as const, author: 'Moderator', time: '09:00 AM', content: 'Debate created.' },
+      ],
+    };
+
+    await RoundOrchestrator.generateOpeningStatements('user-1');
+
+    expect(mockState.appendedMessages).toHaveLength(3);
+    expect(mockState.appendedMessages[0]).toMatchObject({ author: 'pro2' });
+    expect(mockState.appendedMessages[1]).toMatchObject({ author: 'con1' });
+    expect(mockState.appendedMessages[2]).toMatchObject({ author: 'con2' });
+
+    expect(mockState.appendedMessages[0].content.length).toBeGreaterThan(0);
+    expect(mockState.appendedMessages[1].content.length).toBeGreaterThan(0);
+    expect(mockState.appendedMessages[2].content.length).toBeGreaterThan(0);
+  });
+
+  test('generateOpeningStatements skips when non-system messages already exist', async () => {
+    mockState.activeDebate = {
+      id: 'debate-1',
+      topic: 'Resolved: recommendation algorithms should be regulated.',
+      stance: 'Proponent' as const,
+      rigor: 4,
+      stage: 'Constructive',
+      speakerRole: 'pro1',
+      messages: [
+        { id: 'msg-system', role: 'system' as const, author: 'Moderator', time: '09:00 AM', content: 'Debate created.' },
+        { id: 'msg-1', role: 'user' as const, author: 'Student', time: '09:01 AM', content: 'My argument.' },
+      ],
+    };
+
+    await RoundOrchestrator.generateOpeningStatements('user-1');
+
+    expect(mockState.appendedMessages.filter((m) => m.author !== 'Student')).toHaveLength(0);
   });
 });

@@ -619,7 +619,7 @@ app.get('/api/debates/current', (req, res) => {
   });
 });
 
-app.post('/api/debates', (req, res) => {
+app.post('/api/debates', async (req, res) => {
   const user = requireAuth(req, res);
   if (!user) return;
 
@@ -643,15 +643,21 @@ app.post('/api/debates', (req, res) => {
     return;
   }
 
-  res.status(201).json(
-    createDebateForUser(user.id, {
-      topic,
-      stance,
-      speakerRole,
-      rigor,
-      knowledgeDocumentIds,
-    }),
-  );
+  const debate = createDebateForUser(user.id, {
+    topic,
+    stance,
+    speakerRole,
+    rigor,
+    knowledgeDocumentIds,
+  });
+
+  try {
+    await RoundOrchestrator.generateOpeningStatements(user.id);
+  } catch (error) {
+    console.error('Failed to generate opening statements:', error);
+  }
+
+  res.status(201).json(getActiveDebate(user.id) ?? debate);
 });
 
 app.post('/api/debates/current/messages', async (req, res) => {
