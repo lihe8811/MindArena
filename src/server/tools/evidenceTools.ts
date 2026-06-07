@@ -1,4 +1,6 @@
 import { evidenceClerk, type EvidenceCitation, type EvidenceClaim } from '../services/evidenceClerk';
+import { searchTools, type BraveSearchResult } from './searchTools';
+export type { BraveSearchResult };
 
 export interface RecordEvidenceParams {
   debateId: string;
@@ -321,6 +323,20 @@ class EvidenceTools {
       errors: validation.errors,
       suggestions,
     };
+  }
+
+  /**
+   * Search the web for evidence supporting a claim.
+   */
+  async searchEvidence(claim: string): Promise<BraveSearchResult> {
+    return searchTools.searchEvidence(claim);
+  }
+
+  /**
+   * Search the web for rebuttal evidence against a claim.
+   */
+  async searchRebuttal(claim: string): Promise<BraveSearchResult> {
+    return searchTools.searchRebuttal(claim);
   }
 }
 
