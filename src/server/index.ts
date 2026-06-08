@@ -678,6 +678,18 @@ app.post('/api/debates/current/messages', async (req, res) => {
   }
 });
 
+app.post('/api/debates/current/coach', async (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  try {
+    const coaching = await RoundOrchestrator.getTeammateCoaching(user.id);
+    res.json({ coaching });
+  } catch (error) {
+    res.status(500).send(error instanceof Error ? error.message : 'Error generating teammate coaching.');
+  }
+});
+
 app.use(express.static(distPath));
 
 app.get('*', (_req, res) => {

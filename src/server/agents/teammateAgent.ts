@@ -36,3 +36,19 @@ export async function createTeammateAgent(config: TeammateAgentConfig): Promise<
     handoffs: [],
   });
 }
+
+export function buildMockTeammateResponse(config: {
+  side: 'Proponent' | 'Opponent';
+  topic: string;
+  phase: string;
+  context: string;
+  performanceContext: string;
+}): string {
+  return [
+    `Mock Teammate Coach (${config.side})`,
+    `Phase: ${config.phase}`,
+    `Topic: ${config.topic}`,
+    `Performance Note: ${config.performanceContext}`,
+    'Coaching: Focus on linking your evidence back to the resolution. Your structure is solid — tighten the warrant and impact steps.',
+  ].join('\n');
+}
