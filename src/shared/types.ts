@@ -4,13 +4,24 @@ export type View =
   | 'start-debate'
   | 'arena'
   | 'history'
-  | 'performance'
-  | 'knowledge-base';
+  | 'performance';
+
+export interface UserSettings {
+  displayName: string;
+  title: string;
+  defaultStance: 'Proponent' | 'Opponent';
+  defaultRigor: number;
+  emailNotifications: boolean;
+  rememberSession: boolean;
+  compactSidebar: boolean;
+  autoOpenArena: boolean;
+}
 
 export interface UserProfile {
   id: string;
   name: string;
   email: string;
+  emailVerified: boolean;
   title: string;
   streak: number;
   createdAt?: string;
@@ -26,6 +37,26 @@ export interface AuthResponse {
   session: AuthSession;
 }
 
+export interface VerificationChallenge {
+  email: string;
+  expiresAt: string;
+  requiresVerification: true;
+  deliveryMethod?: 'email' | 'dev-log';
+  previewCode?: string;
+}
+
+export interface EmailVerificationResponse {
+  ok: true;
+  email: string;
+  verifiedAt: string;
+}
+
+export interface PasswordResetResponse {
+  ok: true;
+  email: string;
+  resetAt: string;
+}
+
 export interface DashboardStats {
   logicScore: number;
   averageResponseSeconds: number;
@@ -37,7 +68,7 @@ export interface RecentDebate {
   id: string;
   topic: string;
   opponent: string;
-  status: 'Victory' | 'Defeat' | 'Draw' | 'In Progress';
+  status: 'Victory' | 'Defeat' | 'Draw' | 'In Progress' | 'Terminated';
   duration: string;
   tokens: string;
   domain: string;
@@ -54,31 +85,43 @@ export interface DashboardData {
 export interface DebateSetup {
   topic: string;
   stance: 'Proponent' | 'Opponent';
+  speakerRole?: DebateParticipantId;
   rigor: number;
   knowledgeDocumentIds?: string[];
 }
 
 export interface DebateMessage {
   id: string;
-  role: 'system' | 'user';
+  role: 'system' | 'user' | 'assistant';
   author: string;
   time: string;
   content: string;
+}
+
+export type DebateParticipantId = 'pro1' | 'pro2' | 'con1' | 'con2';
+
+export interface DebateParticipant {
+  id: DebateParticipantId;
+  label: DebateParticipantId;
+  side: 'Proponent' | 'Opponent';
+  speakerOrder: 1 | 2;
 }
 
 export interface ActiveDebate {
   id: string;
   topic: string;
   stance: 'Proponent' | 'Opponent';
+  speakerRole?: DebateParticipantId;
   rigor: number;
   stage: string;
   timerLabel: string;
-  status: 'Ready' | 'In Progress' | 'Completed';
+  status: 'Ready' | 'In Progress' | 'Completed' | 'Terminated';
   messages: DebateMessage[];
   createdAt: string;
   updatedAt: string;
   score?: number;
   knowledgeDocumentIds?: string[];
+  participants?: DebateParticipant[];
 }
 
 export interface HistoryItem {
@@ -87,7 +130,7 @@ export interface HistoryItem {
   subject: string;
   date: string;
   level: number;
-  status: 'Victory' | 'Defeat' | 'Draw' | 'In Progress';
+  status: 'Victory' | 'Defeat' | 'Draw' | 'In Progress' | 'Terminated';
   score: number;
   opponent?: string;
   createdAt?: string;
@@ -158,4 +201,5 @@ export interface AppBootstrap {
   performance: PerformanceData;
   knowledgeBase: KnowledgeDocument[];
   activeDebate: ActiveDebate | null;
+  settings: UserSettings | null;
 }

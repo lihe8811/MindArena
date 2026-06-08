@@ -1,6 +1,14 @@
 import { Bolt, ChevronRight, Clock3, History, Trophy } from 'lucide-react';
 import type { DashboardData, UserProfile } from '@/shared/types';
 
+function getDebateStatusStyle(status: string): string {
+  const s = status.toLowerCase();
+  if (s === 'win' || s === 'won') return 'border-tertiary/40 bg-tertiary/10 text-tertiary';
+  if (s === 'loss' || s === 'lost') return 'border-error/30 bg-error/10 text-error';
+  if (s.includes('progress')) return 'border-primary/30 bg-primary/10 text-primary';
+  return 'border-outline-variant text-on-surface';
+}
+
 interface DashboardProps {
   data: DashboardData;
   user: UserProfile | null;
@@ -18,11 +26,11 @@ export function Dashboard({ data, user, onStartDebate, onOpenHistory }: Dashboar
 
   return (
     <div className="space-y-8 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <section className="rounded-3xl border border-outline-variant bg-gradient-to-br from-primary/20 via-surface-container to-surface-container-low p-8 md:p-10">
-        <p className="text-[10px] uppercase tracking-[0.3em] text-primary font-black">MindArena Workspace</p>
-        <h2 className="mt-4 text-4xl font-black tracking-tight text-on-surface max-w-3xl">{data.heroTitle}</h2>
-        <p className="mt-4 max-w-2xl text-secondary text-sm md:text-base">{data.heroSubtitle}</p>
-        <div className="mt-8 flex flex-col sm:flex-row gap-4">
+      <section className="relative rounded-3xl border border-outline-variant bg-gradient-to-br from-primary/20 via-surface-container to-tertiary/5 p-8 md:p-10 overflow-hidden">
+        <div aria-hidden="true" className="absolute -top-10 -right-10 w-80 h-56 bg-primary/8 blur-3xl rounded-full pointer-events-none" />
+        <h2 className="relative text-4xl font-black tracking-tight text-on-surface max-w-3xl">{data.heroTitle}</h2>
+        <p className="relative mt-4 max-w-2xl text-secondary text-sm md:text-base">{data.heroSubtitle}</p>
+        <div className="relative mt-8 flex flex-col sm:flex-row gap-4">
           <button
             onClick={onStartDebate}
             className="bg-primary text-on-primary font-bold px-6 py-3 rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2"
@@ -43,7 +51,7 @@ export function Dashboard({ data, user, onStartDebate, onOpenHistory }: Dashboar
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {stats.map((item) => (
           <div key={item.label} className="rounded-2xl border border-outline-variant bg-surface-container p-5">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-bold">{item.label}</p>
+            <p className="text-sm font-semibold text-secondary">{item.label}</p>
             <p className="mt-3 text-3xl font-black tracking-tight text-on-surface">{item.value}</p>
           </div>
         ))}
@@ -63,8 +71,9 @@ export function Dashboard({ data, user, onStartDebate, onOpenHistory }: Dashboar
           </div>
           <div className="divide-y divide-outline-variant">
             {data.recentDebates.length === 0 ? (
-              <div className="px-6 py-10 text-sm text-secondary">
-                No debates yet. Start your first round after adding a few rules or source files.
+              <div className="px-6 py-12 text-center">
+                <p className="text-sm font-semibold text-on-surface">No debates on record</p>
+                <p className="mt-2 text-sm text-secondary">Set up your first topic, pick a stance, and your results appear here.</p>
               </div>
             ) : (
               data.recentDebates.map((debate) => (
@@ -78,7 +87,7 @@ export function Dashboard({ data, user, onStartDebate, onOpenHistory }: Dashboar
                   <div className="flex items-center gap-4 text-xs">
                     <span className="text-secondary">{debate.duration}</span>
                     <span className="text-secondary">{debate.tokens}</span>
-                    <span className="rounded-full border border-outline-variant px-3 py-1 font-bold text-on-surface">
+                    <span className={`rounded-full border px-3 py-1 font-bold text-sm ${getDebateStatusStyle(debate.status)}`}>
                       {debate.status}
                     </span>
                   </div>
@@ -91,7 +100,7 @@ export function Dashboard({ data, user, onStartDebate, onOpenHistory }: Dashboar
         <section className="space-y-6">
           <div className="rounded-2xl border border-primary/20 bg-primary/10 p-6">
             <div className="flex items-center gap-3">
-              <Trophy className="w-5 h-5 text-primary" />
+              <Clock3 className="w-5 h-5 text-primary" />
               <p className="text-sm font-bold text-on-surface">{user?.title ?? 'Debater'}</p>
             </div>
             <p className="mt-3 text-3xl font-black tracking-tight text-on-surface">{user?.streak ?? 0} day streak</p>
@@ -100,7 +109,7 @@ export function Dashboard({ data, user, onStartDebate, onOpenHistory }: Dashboar
 
           <div className="rounded-2xl border border-outline-variant bg-surface-container p-6">
             <div className="flex items-center gap-3">
-              <Clock3 className="w-5 h-5 text-primary" />
+              <Trophy className="w-5 h-5 text-primary" />
               <h3 className="font-bold text-on-surface">Practice Focus</h3>
             </div>
             <div className="mt-4 space-y-3">

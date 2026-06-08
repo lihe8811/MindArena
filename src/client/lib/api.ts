@@ -3,9 +3,8 @@ import type {
   AppBootstrap,
   AuthResponse,
   DebateSetup,
-  KnowledgeDocument,
-  KnowledgeDocumentDetail,
-  KnowledgeSearchResponse,
+  UserSettings,
+  VerificationChallenge,
 } from '@/shared/types';
 
 const AUTH_TOKEN_KEY = 'mindarena.auth.token';
@@ -57,23 +56,58 @@ export function getBootstrap() {
 }
 
 export async function register(payload: { name: string; email: string; password: string }) {
-  const response = await request<AuthResponse>('/api/session/register', {
+  const response = await request<VerificationChallenge>('/api/session/register', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+
+  return response;
+}
+
+export async function login(email: string, password: string) {
+  const response = await request<VerificationChallenge>('/api/session/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+
+  return response;
+}
+
+export async function verifyEmail(email: string, code: string) {
+  const response = await request<{ ok: true; email: string; verifiedAt: string }>('/api/session/verify-email', {
+    method: 'POST',
+    body: JSON.stringify({ email, code }),
+  });
+
+  return response;
+}
+
+export async function resendVerification(email: string) {
+  const response = await request<VerificationChallenge>('/api/session/resend-verification', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+
+  return response;
+}
+
+export async function confirmLogin(email: string, code: string) {
+  const response = await request<AuthResponse>('/api/session/confirm-login', {
+    method: 'POST',
+    body: JSON.stringify({ email, code }),
   });
 
   setStoredToken(response.session.token);
   return response.session;
 }
 
-export async function login(email: string, password: string) {
-  const response = await request<AuthResponse>('/api/session/login', {
+export async function resendLoginCode(email: string) {
+  const response = await request<VerificationChallenge>('/api/session/resend-login-code', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email }),
   });
 
-  setStoredToken(response.session.token);
-  return response.session;
+  return response;
 }
 
 export async function logout() {
@@ -98,62 +132,25 @@ export function sendDebateMessage(content: string) {
   });
 }
 
-export function listKnowledgeBase() {
-  return request<{ documents: KnowledgeDocument[] }>('/api/knowledge-base');
+export function getSettings() {
+  return request<{ settings: UserSettings }>('/api/settings');
 }
 
-export function getKnowledgeDocument(documentId: string) {
-  return request<KnowledgeDocumentDetail>(`/api/knowledge-base/${documentId}`);
+export function getNotifications() {
+  return request<{
+    notifications: Array<{
+      id: string;
+      type: string;
+      title: string;
+      message: string;
+      read: boolean;
+      createdAt: string;
+    }>;
+  }>('/api/notifications');
 }
 
-export function createKnowledgeRule(payload: {
-  title: string;
-  category: string;
-  content: string;
-}) {
-  return request<{ document: KnowledgeDocument; documents: KnowledgeDocument[] }>(
-    '/api/knowledge-base/rules',
-    {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    },
-  );
-}
-
-export function uploadKnowledgeFile(payload: {
-  file: File;
-  title?: string;
-  category?: string;
-}) {
-  const formData = new FormData();
-  formData.append('file', payload.file);
-  if (payload.title) formData.append('title', payload.title);
-  if (payload.category) formData.append('category', payload.category);
-
-  return request<{ document: KnowledgeDocument; documents: KnowledgeDocument[] }>(
-    '/api/knowledge-base/upload',
-    {
-      method: 'POST',
-      body: formData,
-    },
-  );
-}
-
-export function searchKnowledge(query: string, limit = 8) {
-  return request<KnowledgeSearchResponse>('/api/knowledge-base/search', {
-    method: 'POST',
-    body: JSON.stringify({ query, limit }),
-  });
-}
-
-export function reindexKnowledgeDocument(documentId: string) {
-  return request<KnowledgeDocumentDetail>(`/api/knowledge-base/${documentId}/reindex`, {
-    method: 'POST',
-  });
-}
-
-export function deleteKnowledgeDocument(documentId: string) {
-  return request<{ documents: KnowledgeDocument[] }>(`/api/knowledge-base/${documentId}`, {
-    method: 'DELETE',
+export function markNotificationsRead() {
+  return request<{ ok: true }>('/api/notifications/read', {
+    method: 'PUT',
   });
 }
