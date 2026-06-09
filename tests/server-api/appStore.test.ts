@@ -6,7 +6,12 @@ import {
   advanceDebateStage,
   appendDebateMessage,
   createDebateForUser,
+  dismissUserNotification,
+  expireDebateIfTimeElapsed,
+  getActiveDebate,
   getSessionFromToken,
+  listUserHistory,
+  listUserNotifications,
   loginUser,
   registerUser,
 } from '../../src/server/stores/appStore';
@@ -117,6 +122,57 @@ describe('app store sessions', () => {
 });
 
 describe('app store debate transcript', () => {
+  test('terminates an active debate when its timer has elapsed', () => {
+    const email = `debate-expiry-${crypto.randomUUID()}@example.com`;
+    registerUser({
+      name: 'Debate Expiry',
+      email,
+      password: 'correct horse battery staple',
+    });
+    const auth = loginUser({ email, password: 'correct horse battery staple' });
+    const userId = auth.session.user?.id;
+
+    expect(userId).toBeString();
+
+    const created = createDebateForUser(userId!, {
+      topic: 'Resolved: elapsed debates should stop.',
+      stance: 'Proponent',
+      rigor: 3,
+      knowledgeDocumentIds: [],
+    });
+    const expiresAt = new Date(created.createdAt).getTime() + 4 * 60 * 1000;
+
+    const beforeExpiry = expireDebateIfTimeElapsed(userId!, new Date(expiresAt - 1));
+    expect(beforeExpiry).toMatchObject({
+      status: 'Ready',
+      stage: 'Constructive',
+    });
+
+    const expired = expireDebateIfTimeElapsed(userId!, new Date(expiresAt));
+    expect(expired).toMatchObject({
+      status: 'Terminated',
+      stage: 'Verdict',
+      timerLabel: '00:00',
+    });
+    expect(expired.messages.at(-1)).toMatchObject({
+      role: 'system',
+      author: 'Moderator',
+      content: 'Time expired. The debate has ended.',
+    });
+    expect(getActiveDebate(userId!)).toBeNull();
+    expect(listUserHistory(userId!)[0]).toMatchObject({
+      id: created.id,
+      status: 'Terminated',
+    });
+    expect(listUserNotifications(userId!)).toEqual([
+      expect.objectContaining({
+        debateId: created.id,
+        status: 'Terminated',
+        title: 'Debate terminated',
+      }),
+    ]);
+  });
+
   test('records rival agent output as an assistant message for arena rendering', () => {
     const email = `debate-agent-${crypto.randomUUID()}@example.com`;
     registerUser({
@@ -181,6 +237,46 @@ describe('app store debate transcript', () => {
       expect(debate.stage).toBe(expectedStage);
       expect(debate.status).toBe(index === expectedStages.length - 1 ? 'Completed' : 'In Progress');
     });
+
+    expect(listUserNotifications(userId!)).toEqual([
+      expect.objectContaining({
+        status: 'Completed',
+        title: 'Debate completed',
+      }),
+    ]);
+  });
+
+  test('permanently dismisses only notifications owned by the user', () => {
+    const ownerAuth = registerUser({
+      name: 'Notification Owner',
+      email: `notification-owner-${crypto.randomUUID()}@example.com`,
+      password: 'correct horse battery staple',
+    });
+    const otherAuth = registerUser({
+      name: 'Notification Other',
+      email: `notification-other-${crypto.randomUUID()}@example.com`,
+      password: 'correct horse battery staple',
+    });
+    const ownerId = ownerAuth.session.user!.id;
+    const otherId = otherAuth.session.user!.id;
+    const debate = createDebateForUser(ownerId, {
+      topic: 'Resolved: dismissed notifications should stay dismissed.',
+      stance: 'Proponent',
+      rigor: 3,
+      knowledgeDocumentIds: [],
+    });
+
+    expireDebateIfTimeElapsed(ownerId, new Date(Date.parse(debate.createdAt) + 4 * 60 * 1000));
+    const [notification] = listUserNotifications(ownerId);
+
+    expect(notification).toBeDefined();
+    expect(() => dismissUserNotification(otherId, notification.id)).toThrow('Notification not found.');
+    expect(listUserNotifications(ownerId)).toHaveLength(1);
+
+    dismissUserNotification(ownerId, notification.id);
+
+    expect(listUserNotifications(ownerId)).toEqual([]);
+    expect(listUserNotifications(ownerId)).toEqual([]);
   });
 
   test('runs a complete mock debate through the orchestrator', async () => {

@@ -5,6 +5,7 @@ function getDebateStatusStyle(status: string): string {
   const s = status.toLowerCase();
   if (s === 'win' || s === 'won') return 'border-tertiary/40 bg-tertiary/10 text-tertiary';
   if (s === 'loss' || s === 'lost') return 'border-error/30 bg-error/10 text-error';
+  if (s === 'terminated') return 'border-primary/40 bg-primary/15 text-primary';
   if (s.includes('progress')) return 'border-primary/30 bg-primary/10 text-primary';
   return 'border-outline-variant text-on-surface';
 }

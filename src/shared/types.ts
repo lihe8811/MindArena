@@ -130,6 +130,15 @@ export interface HistoryItem {
   createdAt?: string;
 }
 
+export interface DebateNotification {
+  id: string;
+  debateId: string;
+  status: 'Completed' | 'Terminated';
+  title: string;
+  message: string;
+  createdAt: string;
+}
+
 export interface PerformanceMetric {
   label: string;
   value: string;

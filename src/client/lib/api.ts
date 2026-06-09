@@ -2,6 +2,7 @@ import type {
   ActiveDebate,
   AppBootstrap,
   AuthResponse,
+  DebateNotification,
   DebateSetup,
   UserSettings,
 } from '@/shared/types';
@@ -96,26 +97,23 @@ export function sendDebateMessage(content: string) {
   });
 }
 
+export function expireCurrentDebate() {
+  return request<ActiveDebate>('/api/debates/current/expire', {
+    method: 'POST',
+  });
+}
+
 export function getSettings() {
   return request<{ settings: UserSettings }>('/api/settings');
 }
 
 export function getNotifications() {
-  return request<{
-    notifications: Array<{
-      id: string;
-      type: string;
-      title: string;
-      message: string;
-      read: boolean;
-      createdAt: string;
-    }>;
-  }>('/api/notifications');
+  return request<{ notifications: DebateNotification[] }>('/api/notifications');
 }
 
-export function markNotificationsRead() {
-  return request<{ ok: true }>('/api/notifications/read', {
-    method: 'PUT',
+export function dismissNotification(notificationId: string) {
+  return request<{ notifications: DebateNotification[] }>(`/api/notifications/${notificationId}`, {
+    method: 'DELETE',
   });
 }
 

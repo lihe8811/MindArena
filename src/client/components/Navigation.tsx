@@ -1,6 +1,6 @@
 import {
   BarChart2,
-  HelpCircle,
+  Bell,
   History,
   Home,
   LogOut,
@@ -20,6 +20,8 @@ interface SidebarProps {
   onViewChange: (view: View) => void;
   onLogout: () => void;
   onSettingsClick?: () => void;
+  onNotificationsClick: () => void;
+  notificationCount: number;
   user: UserProfile | null;
   hasActiveDebate: boolean;
   isMobileOpen?: boolean;
@@ -31,6 +33,8 @@ function NavContent({
   onViewChange,
   onLogout,
   onSettingsClick,
+  onNotificationsClick,
+  notificationCount,
   user,
   hasActiveDebate,
 }: Omit<SidebarProps, 'isMobileOpen' | 'onCloseMobile'>) {
@@ -97,8 +101,19 @@ function NavContent({
             <p className="text-xs text-secondary truncate">{user?.email ?? 'Not connected'}</p>
           </div>
         </div>
-        <button className="w-full flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-high/50 hover:text-on-surface transition-all rounded-lg font-sans text-sm tracking-tight">
-          <HelpCircle className="w-5 h-5" /> Help
+        <button
+          type="button"
+          onClick={onNotificationsClick}
+          aria-label={`Notifications${notificationCount > 0 ? `, ${notificationCount} pending` : ''}`}
+          className="w-full flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-high/50 hover:text-on-surface transition-all rounded-lg font-sans text-sm tracking-tight"
+        >
+          <Bell className="w-5 h-5" />
+          <span>Notifications</span>
+          {notificationCount > 0 ? (
+            <span className="ml-auto min-w-5 rounded-full bg-primary px-1.5 py-0.5 text-center text-[10px] font-black text-on-primary">
+              {notificationCount > 99 ? '99+' : notificationCount}
+            </span>
+          ) : null}
         </button>
         <button
           type="button"
@@ -123,6 +138,8 @@ export function Sidebar({
   onViewChange,
   onLogout,
   onSettingsClick,
+  onNotificationsClick,
+  notificationCount,
   user,
   hasActiveDebate,
   isMobileOpen = false,
@@ -136,6 +153,8 @@ export function Sidebar({
           onViewChange={onViewChange}
           onLogout={onLogout}
           onSettingsClick={onSettingsClick}
+          onNotificationsClick={onNotificationsClick}
+          notificationCount={notificationCount}
           user={user}
           hasActiveDebate={hasActiveDebate}
         />
@@ -169,6 +188,8 @@ export function Sidebar({
                 onViewChange={onViewChange}
                 onLogout={onLogout}
                 onSettingsClick={onSettingsClick}
+                onNotificationsClick={onNotificationsClick}
+                notificationCount={notificationCount}
                 user={user}
                 hasActiveDebate={hasActiveDebate}
               />

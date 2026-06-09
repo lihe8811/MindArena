@@ -8,10 +8,13 @@ import {
   buildDashboardForUser,
   buildPerformanceForUser,
   createDebateForUser,
+  dismissUserNotification,
+  expireDebateIfTimeElapsed,
   getActiveDebate,
   getSessionFromToken,
   getUserSettings,
   listUserHistory,
+  listUserNotifications,
   loginUser,
   logoutSession,
   requestPasswordReset,
@@ -299,28 +302,20 @@ app.get('/api/notifications', (req, res) => {
   const user = requireAuth(req, res);
   if (!user) return;
 
-  const completedCount = listUserHistory(user.id).filter((item) => item.status !== 'In Progress').length;
-  const notifications = completedCount > 0
-    ? [
-        {
-          id: 'debate-progress',
-          type: 'info',
-          title: 'Debate progress',
-          message: `You have ${completedCount} completed debate(s). Keep up the practice.`,
-          read: false,
-          createdAt: new Date().toISOString(),
-        },
-      ]
-    : [];
-
-  res.json({ notifications });
+  res.json({ notifications: listUserNotifications(user.id) });
 });
 
-app.put('/api/notifications/read', (req, res) => {
+app.delete('/api/notifications/:notificationId', (req, res) => {
   const user = requireAuth(req, res);
   if (!user) return;
 
-  res.json({ ok: true });
+  try {
+    res.json({
+      notifications: dismissUserNotification(user.id, req.params.notificationId),
+    });
+  } catch (error) {
+    res.status(404).send(error instanceof Error ? error.message : 'Notification not found.');
+  }
 });
 
 app.get('/api/knowledge-base', (req, res) => {
@@ -468,10 +463,27 @@ app.post('/api/debates/current/messages', async (req, res) => {
   }
 
   try {
+    const debate = expireDebateIfTimeElapsed(user.id);
+    if (debate.status === 'Terminated') {
+      res.status(409).send('Time expired. The debate has ended.');
+      return;
+    }
+
     const updatedDebate = await RoundOrchestrator.processTurn(user.id, content);
     res.json(updatedDebate);
   } catch (error) {
     res.status(500).send(error instanceof Error ? error.message : 'Error processing debate turn.');
+  }
+});
+
+app.post('/api/debates/current/expire', (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  try {
+    res.json(expireDebateIfTimeElapsed(user.id));
+  } catch (error) {
+    res.status(404).send(error instanceof Error ? error.message : 'No active debate.');
   }
 });
 

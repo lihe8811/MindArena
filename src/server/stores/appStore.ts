@@ -7,6 +7,7 @@ import type {
   ActiveDebate,
   AuthResponse,
   DashboardData,
+  DebateNotification,
   DebateParticipant,
   DebateParticipantId,
   DebateSetup,
@@ -53,6 +54,10 @@ interface StoredDebate extends ActiveDebate {
   domain: string;
 }
 
+interface StoredNotification extends DebateNotification {
+  userId: string;
+}
+
 const debateParticipants: DebateParticipant[] = [
   { id: 'pro1', label: 'pro1', side: 'Proponent', speakerOrder: 1 },
   { id: 'pro2', label: 'pro2', side: 'Proponent', speakerOrder: 2 },
@@ -70,12 +75,14 @@ interface AppStoreShape {
   users: StoredUser[];
   sessions: StoredSession[];
   debates: StoredDebate[];
+  notifications: StoredNotification[];
 }
 
 const defaultStore: AppStoreShape = {
   users: [],
   sessions: [],
   debates: [],
+  notifications: [],
 };
 
 function ensureStoreFile() {
@@ -91,6 +98,7 @@ function ensureStoreFile() {
 export function loadStore() {
   ensureStoreFile();
   const store = JSON.parse(fs.readFileSync(storePath, 'utf8')) as AppStoreShape;
+  store.notifications = store.notifications ?? [];
   store.users = store.users.map((user) => {
     const {
       verification: _verification,
@@ -120,6 +128,12 @@ function nowIso() {
 
 function nowLabel(date = new Date()) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function timerLabelToMs(label: string) {
+  const [minutes = '0', seconds = '0'] = label.split(':');
+  const totalSeconds = Number(minutes) * 60 + Number(seconds);
+  return Number.isFinite(totalSeconds) ? Math.max(0, totalSeconds) * 1000 : 0;
 }
 
 function randomId(prefix: string) {
@@ -441,6 +455,44 @@ function inferScore(messageCount: number) {
   return Math.min(96, 60 + messageCount * 6);
 }
 
+function isDebateTerminal(status: ActiveDebate['status']) {
+  return status === 'Completed' || status === 'Terminated';
+}
+
+function getDebateOutcome(debate: StoredDebate): HistoryItem['status'] {
+  if (debate.status === 'Terminated') return 'Terminated';
+  if (debate.status === 'Completed') return inferDebateStatus(debate.messages.length);
+  return 'In Progress';
+}
+
+function createDebateNotification(
+  store: AppStoreShape,
+  debate: StoredDebate,
+  status: DebateNotification['status'],
+  createdAt: string,
+) {
+  const exists = store.notifications.some(
+    (notification) =>
+      notification.userId === debate.userId &&
+      notification.debateId === debate.id &&
+      notification.status === status,
+  );
+  if (exists) return;
+
+  const completed = status === 'Completed';
+  store.notifications.push({
+    id: randomId('notification'),
+    userId: debate.userId,
+    debateId: debate.id,
+    status,
+    title: completed ? 'Debate completed' : 'Debate terminated',
+    message: completed
+      ? `Your debate "${debate.topic}" has completed and is available in history.`
+      : `Your debate "${debate.topic}" was terminated because time expired.`,
+    createdAt,
+  });
+}
+
 function debateToRecent(debate: StoredDebate): RecentDebate {
   const durationMinutes = Math.max(8, debate.messages.length * 4);
   const approximateTokens = debate.messages.reduce((sum, message) => sum + Math.ceil(message.content.length / 4), 0);
@@ -448,7 +500,7 @@ function debateToRecent(debate: StoredDebate): RecentDebate {
     id: debate.id,
     topic: debate.topic,
     opponent: debate.opponent,
-    status: debate.status === 'Completed' ? inferDebateStatus(debate.messages.length) : 'In Progress',
+    status: getDebateOutcome(debate),
     duration: `${durationMinutes}m`,
     tokens: `${(approximateTokens / 1000).toFixed(1)}k`,
     domain: debate.domain,
@@ -456,14 +508,13 @@ function debateToRecent(debate: StoredDebate): RecentDebate {
 }
 
 function debateToHistory(debate: StoredDebate): HistoryItem {
-  const computedStatus = debate.status === 'Completed' ? inferDebateStatus(debate.messages.length) : 'In Progress';
   return {
     id: debate.id,
     topic: debate.topic,
     subject: debate.domain,
     date: new Date(debate.createdAt).toLocaleDateString(),
     level: debate.rigor,
-    status: computedStatus,
+    status: getDebateOutcome(debate),
     score: debate.score ?? 0,
     opponent: debate.opponent,
     createdAt: debate.createdAt,
@@ -508,6 +559,29 @@ export function listUserHistory(userId: string): HistoryItem[] {
     .filter((debate) => debate.userId === userId)
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
     .map(debateToHistory);
+}
+
+export function listUserNotifications(userId: string): DebateNotification[] {
+  const store = loadStore();
+  return store.notifications
+    .filter((notification) => notification.userId === userId)
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+    .map(({ userId: _userId, ...notification }) => notification);
+}
+
+export function dismissUserNotification(userId: string, notificationId: string) {
+  const store = loadStore();
+  const notificationIndex = store.notifications.findIndex(
+    (notification) => notification.id === notificationId && notification.userId === userId,
+  );
+
+  if (notificationIndex === -1) {
+    throw new Error('Notification not found.');
+  }
+
+  store.notifications.splice(notificationIndex, 1);
+  saveStore(store);
+  return listUserNotifications(userId);
 }
 
 export function buildPerformanceForUser(userId: string): PerformanceData {
@@ -580,10 +654,43 @@ export function createDebateForUser(userId: string, setup: DebateSetup) {
 export function getActiveDebate(userId: string) {
   const store = loadStore();
   const debate = store.debates
-    .filter((entry) => entry.userId === userId && entry.status !== 'Completed')
+    .filter((entry) => entry.userId === userId && !isDebateTerminal(entry.status))
     .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))[0];
 
   return debate || null;
+}
+
+export function expireDebateIfTimeElapsed(userId: string, currentTime = new Date()) {
+  const store = loadStore();
+  const debate = [...store.debates]
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
+    .find((entry) => entry.userId === userId && !isDebateTerminal(entry.status));
+
+  if (!debate) {
+    throw new Error('No active debate.');
+  }
+
+  const expiresAt = new Date(debate.createdAt).getTime() + timerLabelToMs(debate.timerLabel);
+  if (currentTime.getTime() < expiresAt) {
+    return debate;
+  }
+
+  debate.messages.push({
+    id: randomId('msg'),
+    role: 'system',
+    author: 'Moderator',
+    time: nowLabel(currentTime),
+    content: 'Time expired. The debate has ended.',
+  });
+  debate.timerLabel = '00:00';
+  debate.stage = 'Verdict';
+  debate.status = 'Terminated';
+  debate.score = inferScore(debate.messages.length);
+  debate.updatedAt = currentTime.toISOString();
+  createDebateNotification(store, debate, 'Terminated', debate.updatedAt);
+
+  saveStore(store);
+  return debate;
 }
 
 interface AppendDebateMessageOptions {
@@ -600,7 +707,7 @@ export function appendDebateMessage(
   const store = loadStore();
   const debate = [...store.debates]
     .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
-    .find((entry) => entry.userId === userId && entry.status !== 'Completed');
+    .find((entry) => entry.userId === userId && !isDebateTerminal(entry.status));
 
   if (!debate) {
     throw new Error('No active debate.');
@@ -644,7 +751,7 @@ export function advanceDebateStage(userId: string) {
   const store = loadStore();
   const debate = [...store.debates]
     .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
-    .find((entry) => entry.userId === userId && entry.status !== 'Completed');
+    .find((entry) => entry.userId === userId && !isDebateTerminal(entry.status));
 
   if (!debate) {
     throw new Error('No active debate.');
@@ -657,9 +764,14 @@ export function advanceDebateStage(userId: string) {
     debate.stage = nextStage;
     debate.status = 'In Progress';
   } else {
+    const completedAt = nowIso();
     debate.stage = 'Verdict';
     debate.status = 'Completed';
     debate.score = inferScore(debate.messages.length);
+    debate.updatedAt = completedAt;
+    createDebateNotification(store, debate, 'Completed', completedAt);
+    saveStore(store);
+    return debate;
   }
 
   debate.updatedAt = nowIso();

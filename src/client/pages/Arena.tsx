@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, Route, Send, Swords, Timer, UserCircle2, MessageSquareQuote } from 'lucide-react';
 import type { ActiveDebate, DebateParticipant } from '@/shared/types';
 
@@ -6,6 +6,7 @@ interface ArenaProps {
   debate: ActiveDebate | null;
   onSendMessage: (content: string) => Promise<void>;
   onRequestCoaching?: () => Promise<string>;
+  onTimerExpired?: () => Promise<void>;
   isSending?: boolean;
 }
 
@@ -29,11 +30,12 @@ const defaultParticipants: DebateParticipant[] = [
   { id: 'con2', label: 'con2', side: 'Opponent', speakerOrder: 2 },
 ];
 
-export function Arena({ debate, onSendMessage, onRequestCoaching, isSending }: ArenaProps) {
+export function Arena({ debate, onSendMessage, onRequestCoaching, onTimerExpired, isSending }: ArenaProps) {
   const [draft, setDraft] = useState('');
   const [now, setNow] = useState(() => Date.now());
   const [coaching, setCoaching] = useState<string | null>(null);
   const [isCoaching, setIsCoaching] = useState(false);
+  const expiredDebateId = useRef<string | null>(null);
 
   const isDebateOpen = debate?.status === 'Ready' || debate?.status === 'In Progress';
   const participants = debate?.participants?.length === 4 ? debate.participants : defaultParticipants;
@@ -59,6 +61,14 @@ export function Arena({ debate, onSendMessage, onRequestCoaching, isSending }: A
     const timerId = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timerId);
   }, [isDebateOpen, debate?.id]);
+
+  useEffect(() => {
+    if (!debate || !isDebateOpen || timerDisplay !== '00:00' || !onTimerExpired) return;
+    if (expiredDebateId.current === debate.id) return;
+
+    expiredDebateId.current = debate.id;
+    void onTimerExpired();
+  }, [debate, isDebateOpen, onTimerExpired, timerDisplay]);
 
   if (!debate) {
     return (

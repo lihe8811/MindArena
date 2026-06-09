@@ -27,6 +27,7 @@ function LoadingScreen() {
 }
 import { Menu } from 'lucide-react';
 import { Sidebar } from './components/Navigation';
+import { NotificationModal } from './components/NotificationModal';
 import { Landing } from './pages/Landing';
 import { Dashboard } from './pages/Dashboard';
 import { StartDebate } from './pages/StartDebate';
@@ -35,7 +36,10 @@ import { History } from './pages/History';
 import { Performance } from './pages/Performance';
 import {
   createDebate,
+  dismissNotification,
+  expireCurrentDebate,
   getBootstrap,
+  getNotifications,
   getSettings,
   login,
   register,
@@ -43,7 +47,7 @@ import {
   sendDebateMessage,
   requestTeammateCoaching,
 } from './lib/api';
-import type { AppBootstrap, View } from '@/shared/types';
+import type { AppBootstrap, DebateNotification, View } from '@/shared/types';
 
 function App() {
   const [appData, setAppData] = useState<AppBootstrap | null>(null);
@@ -51,13 +55,21 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<DebateNotification[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [dismissingNotificationId, setDismissingNotificationId] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const refreshApp = useCallback(async () => {
     const data = await getBootstrap();
     setAppData(data);
     setCurrentView(data.session.authenticated ? (data.activeDebate ? 'arena' : 'dashboard') : 'landing');
+    if (data.session.authenticated) {
+      const notificationData = await getNotifications();
+      setNotifications(notificationData.notifications);
+    } else {
+      setNotifications([]);
+    }
     return data;
   }, []);
 
@@ -86,13 +98,11 @@ function App() {
 
     setBusy(true);
     setError(null);
-    setNotice(null);
 
     try {
       await login(email, password);
       const data = await refreshApp();
       setCurrentView(data.activeDebate ? 'arena' : 'dashboard');
-      setNotice('Signed in successfully.');
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Unable to sign in.');
     } finally {
@@ -103,13 +113,11 @@ function App() {
   const handleRegister = async (payload: { name: string; email: string; password: string }) => {
     setBusy(true);
     setError(null);
-    setNotice(null);
 
     try {
       await register(payload);
       await refreshApp();
       setCurrentView('dashboard');
-      setNotice('Account created. Your workspace is now persistent.');
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Unable to create account.');
     } finally {
@@ -125,7 +133,7 @@ function App() {
       const data = await refreshApp();
       setAppData(data);
       setCurrentView('landing');
-      setNotice('Signed out.');
+      setNotificationsOpen(false);
     } finally {
       setBusy(false);
     }
@@ -134,13 +142,11 @@ function App() {
   const handleCreateDebate = async (payload: Parameters<typeof createDebate>[0]) => {
     setBusy(true);
     setError(null);
-    setNotice(null);
 
     try {
       await createDebate(payload);
       await refreshApp();
       setCurrentView('arena');
-      setNotice('Debate room created and saved.');
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Unable to create debate.');
     } finally {
@@ -151,7 +157,6 @@ function App() {
   const handleSendMessage = async (content: string) => {
     setBusy(true);
     setError(null);
-    setNotice(null);
 
     try {
       const debate = await sendDebateMessage(content);
@@ -161,7 +166,7 @@ function App() {
       if (debate.status === 'Completed') {
         const data = await refreshApp();
         setAppData(data);
-        setNotice('Debate round finished and moved into history.');
+        setNotificationsOpen(true);
       }
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Unable to send message.');
@@ -175,18 +180,46 @@ function App() {
     return coaching;
   };
 
+  const handleTimerExpired = async () => {
+    try {
+      const debate = await expireCurrentDebate();
+      if (appData) {
+        setAppData({ ...appData, activeDebate: debate });
+      }
+      if (debate.status === 'Terminated') {
+        const data = await refreshApp();
+        setAppData(data);
+        setNotificationsOpen(true);
+      }
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to end the expired debate.');
+    }
+  };
+
   const handleOpenSettings = async () => {
     setBusy(true);
     setError(null);
-    setNotice(null);
 
     try {
-      const { settings } = await getSettings();
-      setNotice(`Settings loaded for ${settings.displayName}.`);
+      await getSettings();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Unable to load settings.');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const handleDismissNotification = async (notificationId: string) => {
+    setDismissingNotificationId(notificationId);
+    setError(null);
+
+    try {
+      const data = await dismissNotification(notificationId);
+      setNotifications(data.notifications);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to dismiss notification.');
+    } finally {
+      setDismissingNotificationId(null);
     }
   };
 
@@ -215,7 +248,15 @@ function App() {
           />
         );
       case 'arena':
-        return <Arena debate={appData.activeDebate} onSendMessage={handleSendMessage} onRequestCoaching={handleRequestCoaching} isSending={busy} />;
+        return (
+          <Arena
+            debate={appData.activeDebate}
+            onSendMessage={handleSendMessage}
+            onRequestCoaching={handleRequestCoaching}
+            onTimerExpired={handleTimerExpired}
+            isSending={busy}
+          />
+        );
       case 'history':
         return <History items={appData.history} />;
       case 'performance':
@@ -254,6 +295,11 @@ function App() {
         onSettingsClick={() => {
           void handleOpenSettings();
         }}
+        onNotificationsClick={() => {
+          setNotificationsOpen(true);
+          setMobileSidebarOpen(false);
+        }}
+        notificationCount={notifications.length}
         user={appData.session.user}
         hasActiveDebate={Boolean(appData.activeDebate)}
         isMobileOpen={mobileSidebarOpen}
@@ -270,11 +316,6 @@ function App() {
           >
             <Menu className="w-5 h-5" />
           </button>
-          {notice ? (
-            <div className="mb-6 rounded-2xl border border-tertiary/30 bg-tertiary/10 px-4 py-3 text-sm text-emerald-100">
-              {notice}
-            </div>
-          ) : null}
           {error && currentView !== 'landing' ? (
             <div className="mb-6 rounded-2xl border border-error/30 bg-error/10 px-4 py-3 text-sm text-red-200">
               {error}
@@ -292,6 +333,16 @@ function App() {
           </div>
         </footer>
       </div>
+      {notificationsOpen ? (
+        <NotificationModal
+          notifications={notifications}
+          dismissingId={dismissingNotificationId}
+          onClose={() => setNotificationsOpen(false)}
+          onDismiss={(notificationId) => {
+            void handleDismissNotification(notificationId);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
