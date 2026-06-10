@@ -116,9 +116,3 @@ export function dismissNotification(notificationId: string) {
     method: 'DELETE',
   });
 }
-
-export function requestTeammateCoaching() {
-  return request<{ coaching: string }>('/api/debates/current/coach', {
-    method: 'POST',
-  });
-}

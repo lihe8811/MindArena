@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeEmailAddress } from '../auth/email';
+import { getDebateRoleName, phaseWaitsForUser, type DebatePhase } from '@/shared/debatePhases';
 import type {
   ActiveDebate,
   AuthResponse,
@@ -58,14 +59,19 @@ interface StoredNotification extends DebateNotification {
   userId: string;
 }
 
-const debateParticipants: DebateParticipant[] = [
-  { id: 'pro1', label: 'pro1', side: 'Proponent', speakerOrder: 1 },
-  { id: 'pro2', label: 'pro2', side: 'Proponent', speakerOrder: 2 },
-  { id: 'con1', label: 'con1', side: 'Opponent', speakerOrder: 1 },
-  { id: 'con2', label: 'con2', side: 'Opponent', speakerOrder: 2 },
-];
+interface DismissedNotification {
+  userId: string;
+  debateId: string;
+  status: DebateNotification['status'];
+  dismissedAt: string;
+}
 
-const mockDebateStages = ['Constructive', 'Rebuttal', 'Summary', 'Final Focus'] as const;
+const debateParticipants: DebateParticipant[] = [
+  { id: 'pro1', label: getDebateRoleName('pro1'), side: 'Proponent', speakerOrder: 1 },
+  { id: 'pro2', label: getDebateRoleName('pro2'), side: 'Proponent', speakerOrder: 2 },
+  { id: 'con1', label: getDebateRoleName('con1'), side: 'Opponent', speakerOrder: 1 },
+  { id: 'con2', label: getDebateRoleName('con2'), side: 'Opponent', speakerOrder: 2 },
+];
 
 function getParticipant(role: DebateParticipantId) {
   return debateParticipants.find((participant) => participant.id === role) ?? debateParticipants[0];
@@ -76,6 +82,7 @@ interface AppStoreShape {
   sessions: StoredSession[];
   debates: StoredDebate[];
   notifications: StoredNotification[];
+  dismissedNotifications: DismissedNotification[];
 }
 
 const defaultStore: AppStoreShape = {
@@ -83,6 +90,7 @@ const defaultStore: AppStoreShape = {
   sessions: [],
   debates: [],
   notifications: [],
+  dismissedNotifications: [],
 };
 
 function ensureStoreFile() {
@@ -99,6 +107,7 @@ export function loadStore() {
   ensureStoreFile();
   const store = JSON.parse(fs.readFileSync(storePath, 'utf8')) as AppStoreShape;
   store.notifications = store.notifications ?? [];
+  store.dismissedNotifications = store.dismissedNotifications ?? [];
   store.users = store.users.map((user) => {
     const {
       verification: _verification,
@@ -477,7 +486,13 @@ function createDebateNotification(
       notification.debateId === debate.id &&
       notification.status === status,
   );
-  if (exists) return;
+  const wasDismissed = store.dismissedNotifications.some(
+    (notification) =>
+      notification.userId === debate.userId &&
+      notification.debateId === debate.id &&
+      notification.status === status,
+  );
+  if (exists || wasDismissed) return;
 
   const completed = status === 'Completed';
   store.notifications.push({
@@ -579,7 +594,21 @@ export function dismissUserNotification(userId: string, notificationId: string) 
     throw new Error('Notification not found.');
   }
 
-  store.notifications.splice(notificationIndex, 1);
+  const [notification] = store.notifications.splice(notificationIndex, 1);
+  const alreadyDismissed = store.dismissedNotifications.some(
+    (entry) =>
+      entry.userId === notification.userId &&
+      entry.debateId === notification.debateId &&
+      entry.status === notification.status,
+  );
+  if (!alreadyDismissed) {
+    store.dismissedNotifications.push({
+      userId: notification.userId,
+      debateId: notification.debateId,
+      status: notification.status,
+      dismissedAt: nowIso(),
+    });
+  }
   saveStore(store);
   return listUserNotifications(userId);
 }
@@ -627,7 +656,8 @@ export function createDebateForUser(userId: string, setup: DebateSetup) {
     speakerRole: participant.id,
     rigor: setup.rigor,
     knowledgeDocumentIds: setup.knowledgeDocumentIds,
-    stage: 'Constructive',
+    stage: 'setup',
+    awaitingUserInput: false,
     timerLabel: '04:00',
     status: 'Ready',
     messages: [
@@ -658,6 +688,68 @@ export function getActiveDebate(userId: string) {
     .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))[0];
 
   return debate || null;
+}
+
+export function enterDebatePhase(userId: string, phase: DebatePhase) {
+  const store = loadStore();
+  const debate = [...store.debates]
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
+    .find((entry) => entry.userId === userId && !isDebateTerminal(entry.status));
+
+  if (!debate) {
+    throw new Error('No active debate.');
+  }
+
+  const enteredAt = nowIso();
+  debate.stage = phase;
+  const speakerRole = debate.speakerRole ?? (debate.stance === 'Opponent' ? 'con1' : 'pro1');
+  debate.awaitingUserInput = phaseWaitsForUser(phase, speakerRole);
+  debate.status = phase === 'complete' ? 'Completed' : 'In Progress';
+  debate.updatedAt = enteredAt;
+  debate.messages.push({
+    id: randomId('msg'),
+    role: 'system',
+    author: 'Moderator',
+    time: nowLabel(new Date(enteredAt)),
+    content: `Phase: ${phase}`,
+  });
+
+  if (phase === 'complete') {
+    debate.awaitingUserInput = false;
+    debate.score = inferScore(debate.messages.length);
+    createDebateNotification(store, debate, 'Completed', enteredAt);
+  }
+
+  saveStore(store);
+  return debate;
+}
+
+export function recordDebateUserInput(userId: string, content: string) {
+  const store = loadStore();
+  const debate = [...store.debates]
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
+    .find((entry) => entry.userId === userId && !isDebateTerminal(entry.status));
+
+  if (!debate) {
+    throw new Error('No active debate.');
+  }
+  if (!debate.awaitingUserInput) {
+    throw new Error('The debate is not waiting for user input.');
+  }
+
+  debate.messages.push({
+    id: randomId('msg'),
+    role: 'user',
+    author: getDebateRoleName(debate.speakerRole ?? (debate.stance === 'Opponent' ? 'con1' : 'pro1')),
+    time: nowLabel(),
+    content,
+  });
+  debate.awaitingUserInput = false;
+  debate.status = 'In Progress';
+  debate.updatedAt = nowIso();
+
+  saveStore(store);
+  return debate;
 }
 
 export function expireDebateIfTimeElapsed(userId: string, currentTime = new Date()) {
@@ -743,38 +835,6 @@ export function appendDebateMessage(
   debate.status = 'In Progress';
   debate.updatedAt = nowIso();
 
-  saveStore(store);
-  return debate;
-}
-
-export function advanceDebateStage(userId: string) {
-  const store = loadStore();
-  const debate = [...store.debates]
-    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
-    .find((entry) => entry.userId === userId && !isDebateTerminal(entry.status));
-
-  if (!debate) {
-    throw new Error('No active debate.');
-  }
-
-  const currentStageIndex = mockDebateStages.findIndex((stage) => stage === debate.stage);
-  const nextStage = mockDebateStages[currentStageIndex + 1];
-
-  if (nextStage) {
-    debate.stage = nextStage;
-    debate.status = 'In Progress';
-  } else {
-    const completedAt = nowIso();
-    debate.stage = 'Verdict';
-    debate.status = 'Completed';
-    debate.score = inferScore(debate.messages.length);
-    debate.updatedAt = completedAt;
-    createDebateNotification(store, debate, 'Completed', completedAt);
-    saveStore(store);
-    return debate;
-  }
-
-  debate.updatedAt = nowIso();
   saveStore(store);
   return debate;
 }

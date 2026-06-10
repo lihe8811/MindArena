@@ -45,7 +45,6 @@ import {
   register,
   logout,
   sendDebateMessage,
-  requestTeammateCoaching,
 } from './lib/api';
 import type { AppBootstrap, DebateNotification, View } from '@/shared/types';
 
@@ -164,8 +163,12 @@ function App() {
         setAppData({ ...appData, activeDebate: debate });
       }
       if (debate.status === 'Completed') {
-        const data = await refreshApp();
-        setAppData(data);
+        const [data, notificationData] = await Promise.all([
+          getBootstrap(),
+          getNotifications(),
+        ]);
+        setAppData({ ...data, activeDebate: debate });
+        setNotifications(notificationData.notifications);
         setNotificationsOpen(true);
       }
     } catch (requestError) {
@@ -175,11 +178,6 @@ function App() {
     }
   };
 
-  const handleRequestCoaching = async () => {
-    const { coaching } = await requestTeammateCoaching();
-    return coaching;
-  };
-
   const handleTimerExpired = async () => {
     try {
       const debate = await expireCurrentDebate();
@@ -187,8 +185,12 @@ function App() {
         setAppData({ ...appData, activeDebate: debate });
       }
       if (debate.status === 'Terminated') {
-        const data = await refreshApp();
-        setAppData(data);
+        const [data, notificationData] = await Promise.all([
+          getBootstrap(),
+          getNotifications(),
+        ]);
+        setAppData({ ...data, activeDebate: debate });
+        setNotifications(notificationData.notifications);
         setNotificationsOpen(true);
       }
     } catch (requestError) {
@@ -252,7 +254,6 @@ function App() {
           <Arena
             debate={appData.activeDebate}
             onSendMessage={handleSendMessage}
-            onRequestCoaching={handleRequestCoaching}
             onTimerExpired={handleTimerExpired}
             isSending={busy}
           />
@@ -301,7 +302,10 @@ function App() {
         }}
         notificationCount={notifications.length}
         user={appData.session.user}
-        hasActiveDebate={Boolean(appData.activeDebate)}
+        hasActiveDebate={Boolean(
+          appData.activeDebate &&
+          (appData.activeDebate.status === 'Ready' || appData.activeDebate.status === 'In Progress'),
+        )}
         isMobileOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
       />

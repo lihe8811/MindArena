@@ -96,7 +96,7 @@ export type DebateParticipantId = 'pro1' | 'pro2' | 'con1' | 'con2';
 
 export interface DebateParticipant {
   id: DebateParticipantId;
-  label: DebateParticipantId;
+  label: string;
   side: 'Proponent' | 'Opponent';
   speakerOrder: 1 | 2;
 }
@@ -108,6 +108,7 @@ export interface ActiveDebate {
   speakerRole?: DebateParticipantId;
   rigor: number;
   stage: string;
+  awaitingUserInput?: boolean;
   timerLabel: string;
   status: 'Ready' | 'In Progress' | 'Completed' | 'Terminated';
   messages: DebateMessage[];

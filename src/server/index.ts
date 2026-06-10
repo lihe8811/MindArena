@@ -443,11 +443,7 @@ app.post('/api/debates', async (req, res) => {
     knowledgeDocumentIds,
   });
 
-  try {
-    await RoundOrchestrator.generateOpeningStatements(user.id);
-  } catch (error) {
-    console.error('Failed to generate opening statements:', error);
-  }
+  RoundOrchestrator.initializeRound(user.id);
 
   res.status(201).json(getActiveDebate(user.id) ?? debate);
 });
@@ -469,7 +465,7 @@ app.post('/api/debates/current/messages', async (req, res) => {
       return;
     }
 
-    const updatedDebate = await RoundOrchestrator.processTurn(user.id, content);
+    const updatedDebate = RoundOrchestrator.processTurn(user.id, content);
     res.json(updatedDebate);
   } catch (error) {
     res.status(500).send(error instanceof Error ? error.message : 'Error processing debate turn.');
@@ -484,18 +480,6 @@ app.post('/api/debates/current/expire', (req, res) => {
     res.json(expireDebateIfTimeElapsed(user.id));
   } catch (error) {
     res.status(404).send(error instanceof Error ? error.message : 'No active debate.');
-  }
-});
-
-app.post('/api/debates/current/coach', async (req, res) => {
-  const user = requireAuth(req, res);
-  if (!user) return;
-
-  try {
-    const coaching = await RoundOrchestrator.getTeammateCoaching(user.id);
-    res.json({ coaching });
-  } catch (error) {
-    res.status(500).send(error instanceof Error ? error.message : 'Error generating teammate coaching.');
   }
 });
 

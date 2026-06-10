@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Bot, Route, Send, Swords, Timer, UserCircle2, MessageSquareQuote } from 'lucide-react';
+import { Bot, Route, Send, Swords, UserCircle2 } from 'lucide-react';
+import { getDebateRoleName } from '@/shared/debatePhases';
 import type { ActiveDebate, DebateParticipant } from '@/shared/types';
 
 interface ArenaProps {
   debate: ActiveDebate | null;
   onSendMessage: (content: string) => Promise<void>;
-  onRequestCoaching?: () => Promise<string>;
   onTimerExpired?: () => Promise<void>;
   isSending?: boolean;
 }
@@ -23,22 +23,36 @@ function formatTimer(totalSeconds: number) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
+function isMacPlatform() {
+  if (typeof navigator === 'undefined') return false;
+  const navigatorWithClientHints = navigator as Navigator & {
+    userAgentData?: { platform?: string };
+  };
+  const platform =
+    navigatorWithClientHints.userAgentData?.platform ||
+    navigator.platform ||
+    navigator.userAgent;
+  return /Mac|iPhone|iPad|iPod/i.test(platform);
+}
+
 const defaultParticipants: DebateParticipant[] = [
-  { id: 'pro1', label: 'pro1', side: 'Proponent', speakerOrder: 1 },
-  { id: 'pro2', label: 'pro2', side: 'Proponent', speakerOrder: 2 },
-  { id: 'con1', label: 'con1', side: 'Opponent', speakerOrder: 1 },
-  { id: 'con2', label: 'con2', side: 'Opponent', speakerOrder: 2 },
+  { id: 'pro1', label: getDebateRoleName('pro1'), side: 'Proponent', speakerOrder: 1 },
+  { id: 'pro2', label: getDebateRoleName('pro2'), side: 'Proponent', speakerOrder: 2 },
+  { id: 'con1', label: getDebateRoleName('con1'), side: 'Opponent', speakerOrder: 1 },
+  { id: 'con2', label: getDebateRoleName('con2'), side: 'Opponent', speakerOrder: 2 },
 ];
 
-export function Arena({ debate, onSendMessage, onRequestCoaching, onTimerExpired, isSending }: ArenaProps) {
+export function Arena({ debate, onSendMessage, onTimerExpired, isSending }: ArenaProps) {
   const [draft, setDraft] = useState('');
   const [now, setNow] = useState(() => Date.now());
-  const [coaching, setCoaching] = useState<string | null>(null);
-  const [isCoaching, setIsCoaching] = useState(false);
   const expiredDebateId = useRef<string | null>(null);
 
   const isDebateOpen = debate?.status === 'Ready' || debate?.status === 'In Progress';
   const participants = debate?.participants?.length === 4 ? debate.participants : defaultParticipants;
+  const speakerRole = debate?.speakerRole ?? (debate?.stance === 'Opponent' ? 'con1' : 'pro1');
+  const speakerRoleName = getDebateRoleName(speakerRole);
+  const usesCommandShortcut = isMacPlatform();
+  const shortcutHint = usesCommandShortcut ? '⌘ + Enter' : 'Ctrl + Enter';
   const timerDisplay = useMemo(() => {
     if (!debate) return '00:00';
     if (!isDebateOpen) return debate.timerLabel;
@@ -88,12 +102,12 @@ export function Arena({ debate, onSendMessage, onRequestCoaching, onTimerExpired
         <div>
           <h2 className="text-2xl font-bold text-on-surface">{debate.topic}</h2>
           <p className="mt-2 text-sm text-secondary">
-            2v2 round: you are {debate.speakerRole ?? (debate.stance === 'Opponent' ? 'con1' : 'pro1')}
+            2v2 round: you are {speakerRoleName}
           </p>
         </div>
         <div className="rounded-2xl bg-surface-container-low p-4 space-y-3 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-secondary">Stage</span>
+            <span className="text-secondary">Phase</span>
             <span className="font-bold text-on-surface">{debate.stage}</span>
           </div>
           <div className="flex items-center justify-between">
@@ -112,9 +126,19 @@ export function Arena({ debate, onSendMessage, onRequestCoaching, onTimerExpired
           </div>
         </div>
         <div className="rounded-2xl border border-outline-variant bg-surface-container-low p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-bold text-on-surface">Teams</p>
             <span className="text-xs font-bold text-primary">2v2</span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-3 text-[11px] font-bold">
+            <span className="inline-flex items-center gap-1.5 text-primary">
+              <span className="h-2 w-2 rounded-full bg-primary" />
+              Your team
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-sky-900">
+              <span className="h-2 w-2 rounded-full bg-sky-500" />
+              Rival
+            </span>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-3">
             {participants.map((participant) => {
@@ -123,26 +147,35 @@ export function Arena({ debate, onSendMessage, onRequestCoaching, onTimerExpired
               return (
                 <div
                   key={participant.id}
-                  className={`rounded-xl border px-3 py-3 ${
+                  className={`min-w-0 overflow-hidden rounded-xl border px-3 py-3 ${
                     isUserRole
                       ? 'border-primary bg-primary/15'
                       : isUserSide
                         ? 'border-primary/30 bg-primary/10'
-                      : 'border-outline-variant bg-surface-container'
+                        : 'border-sky-300 bg-sky-50'
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className={`text-sm font-black ${isUserSide ? 'text-primary' : 'text-on-surface'}`}>
-                      {participant.label}
-                    </span>
-                    <span className="text-xs text-secondary">
-                      Speaker {participant.speakerOrder}
+                  <span
+                    className={`block whitespace-normal text-sm font-black leading-5 ${
+                      isUserSide ? 'text-primary' : 'text-sky-900'
+                    }`}
+                  >
+                    {participant.label}
+                  </span>
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <p className={`text-xs ${isUserSide ? 'text-secondary' : 'text-sky-800'}`}>
+                      {isUserRole ? 'You' : isUserSide ? 'Teammate' : 'Opponent'}
+                    </p>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black ${
+                        isUserSide
+                          ? 'bg-primary/15 text-primary'
+                          : 'bg-sky-100 text-sky-900'
+                      }`}
+                    >
+                      S{participant.speakerOrder}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-secondary">
-                    {participant.side === 'Proponent' ? 'Pro side' : 'Con side'}
-                    {isUserRole ? ' - you' : isUserSide ? ' - your team' : ''}
-                  </p>
                 </div>
               );
             })}
@@ -151,45 +184,14 @@ export function Arena({ debate, onSendMessage, onRequestCoaching, onTimerExpired
         <div className="rounded-2xl border border-outline-variant bg-surface-container-low p-4">
           <div className="flex items-center gap-2 text-sm font-bold text-on-surface">
             <Route className="w-4 h-4 text-primary" />
-            Mock Workflow
+            Phase Orchestration
           </div>
           <p className="mt-2 text-sm leading-6 text-secondary">
-            Send an argument to record your turn, show the orchestration handoff, and receive a Rival Agent A mock rebuttal in the same transcript.
+            {debate.awaitingUserInput
+              ? `Your turn as ${speakerRoleName}. Submit a message to advance to the next phase.`
+              : 'Automatic phase markers are being recorded in the transcript.'}
           </p>
         </div>
-
-        {onRequestCoaching && (
-          <div className="rounded-2xl border border-outline-variant bg-surface-container-low p-4 space-y-3">
-            <div className="flex items-center gap-2 text-sm font-bold text-on-surface">
-              <MessageSquareQuote className="w-4 h-4 text-primary" />
-              Teammate Coach
-            </div>
-            <button
-              type="button"
-              disabled={isCoaching || !isDebateOpen}
-              onClick={async () => {
-                setIsCoaching(true);
-                setCoaching(null);
-                try {
-                  const advice = await onRequestCoaching();
-                  setCoaching(advice);
-                } catch {
-                  setCoaching('Unable to reach teammate coach right now.');
-                } finally {
-                  setIsCoaching(false);
-                }
-              }}
-              className="w-full rounded-xl bg-primary/10 border border-primary/20 px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors"
-            >
-              {isCoaching ? 'Coaching...' : 'Request Coaching'}
-            </button>
-            {coaching && (
-              <div className="rounded-xl bg-tertiary/10 border border-tertiary/20 px-3 py-2 text-sm text-on-surface whitespace-pre-line">
-                {coaching}
-              </div>
-            )}
-          </div>
-        )}
       </section>
 
       <section className="rounded-3xl border border-outline-variant bg-surface-container overflow-hidden flex flex-col">
@@ -257,19 +259,34 @@ export function Arena({ debate, onSendMessage, onRequestCoaching, onTimerExpired
             setDraft('');
           }}
         >
-          <div className="flex gap-3">
+          <div className="relative">
             <textarea
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
-              placeholder="Write your next argument..."
-              className="min-h-24 flex-1 rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-3 text-on-surface outline-none focus:border-primary"
+              onKeyDown={(event) => {
+                const usesPlatformModifier = usesCommandShortcut ? event.metaKey : event.ctrlKey;
+                if (event.key !== 'Enter' || !usesPlatformModifier) return;
+
+                event.preventDefault();
+                event.currentTarget.form?.requestSubmit();
+              }}
+              disabled={!debate.awaitingUserInput || !isDebateOpen || timerDisplay === '00:00'}
+              placeholder={
+                debate.awaitingUserInput
+                  ? `Write your response as ${speakerRoleName}...`
+                  : 'Waiting for your next assigned phase...'
+              }
+              className="min-h-28 w-full resize-none rounded-2xl border border-outline-variant bg-surface-container-low px-4 pb-16 pt-3 text-on-surface outline-none focus:border-primary"
             />
             <button
               type="submit"
-              disabled={isSending || !isDebateOpen || timerDisplay === '00:00'}
-              className="self-end rounded-2xl bg-primary p-4 text-on-primary disabled:opacity-60"
+              disabled={isSending || !isDebateOpen || !debate.awaitingUserInput || timerDisplay === '00:00'}
+              aria-label={`Send message (${shortcutHint})`}
+              title={`Send message (${shortcutHint})`}
+              className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-on-primary shadow-sm disabled:opacity-60"
             >
               <Send className="w-5 h-5" />
+              <span className="text-xs font-bold">{shortcutHint}</span>
             </button>
           </div>
         </form>

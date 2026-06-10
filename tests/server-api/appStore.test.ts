@@ -3,16 +3,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import {
-  advanceDebateStage,
   appendDebateMessage,
   createDebateForUser,
   dismissUserNotification,
+  enterDebatePhase,
   expireDebateIfTimeElapsed,
   getActiveDebate,
   getSessionFromToken,
   listUserHistory,
   listUserNotifications,
   loginUser,
+  recordDebateUserInput,
   registerUser,
 } from '../../src/server/stores/appStore';
 import { RoundOrchestrator } from '../../src/server/orchestration/roundOrchestrator';
@@ -122,6 +123,47 @@ describe('app store sessions', () => {
 });
 
 describe('app store debate transcript', () => {
+  test('records phase markers and only accepts input while waiting for the user', () => {
+    const auth = registerUser({
+      name: 'Phase Store',
+      email: `phase-store-${crypto.randomUUID()}@example.com`,
+      password: 'correct horse battery staple',
+    });
+    const userId = auth.session.user!.id;
+
+    createDebateForUser(userId, {
+      topic: 'Resolved: orchestration phases should be visible.',
+      stance: 'Proponent',
+      rigor: 3,
+      knowledgeDocumentIds: [],
+    });
+
+    const setup = enterDebatePhase(userId, 'setup');
+    expect(setup).toMatchObject({
+      stage: 'setup',
+      awaitingUserInput: false,
+      status: 'In Progress',
+    });
+    expect(setup.messages.at(-1)).toMatchObject({
+      role: 'system',
+      author: 'Moderator',
+      content: 'Phase: setup',
+    });
+    expect(() => recordDebateUserInput(userId, 'Too early')).toThrow(
+      'The debate is not waiting for user input.',
+    );
+
+    enterDebatePhase(userId, 'constructive_pro');
+    const afterInput = recordDebateUserInput(userId, 'My constructive speech.');
+
+    expect(afterInput.awaitingUserInput).toBe(false);
+    expect(afterInput.messages.at(-1)).toMatchObject({
+      role: 'user',
+      author: 'First Pro Speaker',
+      content: 'My constructive speech.',
+    });
+  });
+
   test('terminates an active debate when its timer has elapsed', () => {
     const email = `debate-expiry-${crypto.randomUUID()}@example.com`;
     registerUser({
@@ -145,7 +187,7 @@ describe('app store debate transcript', () => {
     const beforeExpiry = expireDebateIfTimeElapsed(userId!, new Date(expiresAt - 1));
     expect(beforeExpiry).toMatchObject({
       status: 'Ready',
-      stage: 'Constructive',
+      stage: 'setup',
     });
 
     const expired = expireDebateIfTimeElapsed(userId!, new Date(expiresAt));
@@ -201,51 +243,6 @@ describe('app store debate transcript', () => {
     });
   });
 
-  test('advances through every mock debate stage before completing', () => {
-    const email = `debate-stages-${crypto.randomUUID()}@example.com`;
-    registerUser({
-      name: 'Debate Stages',
-      email,
-      password: 'correct horse battery staple',
-    });
-    const auth = loginUser({ email, password: 'correct horse battery staple' });
-    const userId = auth.session.user?.id;
-
-    expect(userId).toBeString();
-
-    createDebateForUser(userId!, {
-      topic: 'Resolved: mock debates should complete every stage.',
-      stance: 'Proponent',
-      rigor: 3,
-      knowledgeDocumentIds: [],
-    });
-
-    const expectedStages = ['Rebuttal', 'Summary', 'Final Focus', 'Verdict'];
-
-    expectedStages.forEach((expectedStage, index) => {
-      appendDebateMessage(userId!, 'Student', `Student speech ${index + 1}`, {
-        role: 'user',
-        moderatorNote: 'Student turn recorded.',
-      });
-      appendDebateMessage(userId!, 'Rival Agent A', `Rival speech ${index + 1}`, {
-        role: 'assistant',
-        moderatorNote: false,
-      });
-
-      const debate = advanceDebateStage(userId!);
-
-      expect(debate.stage).toBe(expectedStage);
-      expect(debate.status).toBe(index === expectedStages.length - 1 ? 'Completed' : 'In Progress');
-    });
-
-    expect(listUserNotifications(userId!)).toEqual([
-      expect.objectContaining({
-        status: 'Completed',
-        title: 'Debate completed',
-      }),
-    ]);
-  });
-
   test('permanently dismisses only notifications owned by the user', () => {
     const ownerAuth = registerUser({
       name: 'Notification Owner',
@@ -276,53 +273,120 @@ describe('app store debate transcript', () => {
     dismissUserNotification(ownerId, notification.id);
 
     expect(listUserNotifications(ownerId)).toEqual([]);
+
+    const store = JSON.parse(fs.readFileSync(storePath, 'utf8')) as {
+      debates: Array<{ id: string; status: string; stage: string; timerLabel: string }>;
+    };
+    const storedDebate = store.debates.find((entry) => entry.id === debate.id);
+    expect(storedDebate).toBeDefined();
+    storedDebate!.status = 'Ready';
+    storedDebate!.stage = 'Constructive';
+    storedDebate!.timerLabel = '00:00';
+    fs.writeFileSync(storePath, JSON.stringify(store, null, 2), 'utf8');
+
+    expireDebateIfTimeElapsed(ownerId, new Date(Date.parse(debate.createdAt) + 5 * 60 * 1000));
+
     expect(listUserNotifications(ownerId)).toEqual([]);
   });
 
-  test('runs a complete mock debate through the orchestrator', async () => {
-    const originalApiKey = process.env.OPENAI_API_KEY;
-    delete process.env.OPENAI_API_KEY;
+  test('runs the complete documented phase sequence without agent speeches', () => {
+    const auth = registerUser({
+      name: 'Phase Orchestrator',
+      email: `phase-orchestrator-${crypto.randomUUID()}@example.com`,
+      password: 'correct horse battery staple',
+    });
+    const userId = auth.session.user!.id;
 
-    try {
-      const email = `debate-orchestrator-${crypto.randomUUID()}@example.com`;
-      registerUser({
-        name: 'Debate Orchestrator',
-        email,
-        password: 'correct horse battery staple',
-      });
-      const auth = loginUser({ email, password: 'correct horse battery staple' });
-      const userId = auth.session.user?.id;
+    createDebateForUser(userId, {
+      topic: 'Resolved: the orchestrator should expose the full phase sequence.',
+      stance: 'Proponent',
+      rigor: 3,
+      knowledgeDocumentIds: [],
+    });
 
-      expect(userId).toBeString();
+    let debate = RoundOrchestrator.initializeRound(userId);
+    const userPhases = [
+      'constructive_pro',
+      'crossfire_1',
+      'summary_pro',
+      'grand_crossfire',
+    ];
 
-      createDebateForUser(userId!, {
-        topic: 'Resolved: the orchestrator should finish the full mock round.',
-        stance: 'Proponent',
-        rigor: 3,
-        knowledgeDocumentIds: [],
-      });
+    userPhases.forEach((expectedPhase, index) => {
+      expect(debate.stage).toBe(expectedPhase);
+      expect(debate.awaitingUserInput).toBe(true);
+      debate = RoundOrchestrator.processTurn(userId, `Student response ${index + 1}`);
+    });
 
-      const expectedStages = ['Rebuttal', 'Summary', 'Final Focus', 'Verdict'];
+    expect(debate).toMatchObject({
+      stage: 'complete',
+      status: 'Completed',
+      awaitingUserInput: false,
+    });
+    expect(
+      debate.messages
+        .filter((message) => message.author === 'Moderator' && message.content.startsWith('Phase: '))
+        .map((message) => message.content),
+    ).toEqual([
+      'Phase: setup',
+      'Phase: judge_opening',
+      'Phase: student_prep_optional',
+      'Phase: constructive_pro',
+      'Phase: constructive_con',
+      'Phase: crossfire_1',
+      'Phase: rebuttal_pro',
+      'Phase: rebuttal_con',
+      'Phase: crossfire_2',
+      'Phase: summary_pro',
+      'Phase: summary_con',
+      'Phase: grand_crossfire',
+      'Phase: final_focus_pro',
+      'Phase: final_focus_con',
+      'Phase: judge_deliberation',
+      'Phase: judge_feedback',
+      'Phase: complete',
+    ]);
+    expect(debate.messages.some((message) => message.role === 'assistant')).toBe(false);
+    expect(listUserNotifications(userId)).toEqual([
+      expect.objectContaining({
+        status: 'Completed',
+        title: 'Debate completed',
+      }),
+    ]);
+  });
 
-      for (const [index, expectedStage] of expectedStages.entries()) {
-        const debate = await RoundOrchestrator.processTurn(userId!, `Student speech ${index + 1}`);
+  test('second pro speaker only waits on second-speaker rows', () => {
+    const auth = registerUser({
+      name: 'Second Pro',
+      email: `second-pro-${crypto.randomUUID()}@example.com`,
+      password: 'correct horse battery staple',
+    });
+    const userId = auth.session.user!.id;
 
-        expect(debate.stage).toBe(expectedStage);
-        expect(debate.messages).toContainEqual(expect.objectContaining({
-          role: 'assistant',
-          author: 'Rival Agent A',
-        }));
-        expect(debate.messages.at(-1)).toMatchObject({
-          role: 'assistant',
-          author: 'pro2',
-        });
-      }
-    } finally {
-      if (originalApiKey === undefined) {
-        delete process.env.OPENAI_API_KEY;
-      } else {
-        process.env.OPENAI_API_KEY = originalApiKey;
-      }
-    }
+    createDebateForUser(userId, {
+      topic: 'Resolved: speaker ownership should be role-specific.',
+      stance: 'Proponent',
+      speakerRole: 'pro2',
+      rigor: 3,
+      knowledgeDocumentIds: [],
+    });
+
+    let debate = RoundOrchestrator.initializeRound(userId);
+    const userPhases = ['rebuttal_pro', 'crossfire_2', 'grand_crossfire', 'final_focus_pro'];
+
+    userPhases.forEach((expectedPhase, index) => {
+      expect(debate.stage).toBe(expectedPhase);
+      debate = RoundOrchestrator.processTurn(userId, `Second pro response ${index + 1}`);
+    });
+
+    expect(debate.status).toBe('Completed');
+    expect(
+      debate.messages.filter((message) => message.role === 'user').map((message) => message.author),
+    ).toEqual([
+      'Second Pro Speaker',
+      'Second Pro Speaker',
+      'Second Pro Speaker',
+      'Second Pro Speaker',
+    ]);
   });
 });
