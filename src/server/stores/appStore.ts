@@ -659,7 +659,7 @@ export function createDebateForUser(userId: string, setup: DebateSetup) {
     stage: 'setup',
     awaitingUserInput: false,
     timerLabel: '04:00',
-    status: 'Ready',
+    status: 'Prep',
     messages: [
       {
         id: randomId('msg'),
@@ -677,6 +677,26 @@ export function createDebateForUser(userId: string, setup: DebateSetup) {
   };
 
   store.debates.push(debate);
+  saveStore(store);
+  return debate;
+}
+
+export function startDebateForUser(userId: string) {
+  const store = loadStore();
+  const debate = [...store.debates]
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
+    .find((entry) => entry.userId === userId && !isDebateTerminal(entry.status));
+
+  if (!debate) {
+    throw new Error('No active debate.');
+  }
+
+  if (debate.status !== 'Prep') {
+    throw new Error('Debate has already started.');
+  }
+
+  debate.status = 'Ready';
+  debate.updatedAt = nowIso();
   saveStore(store);
   return debate;
 }

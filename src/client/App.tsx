@@ -39,6 +39,7 @@ import {
   dismissNotification,
   expireCurrentDebate,
   getBootstrap,
+  startDebate,
   getNotifications,
   getSettings,
   login,
@@ -153,6 +154,22 @@ function App() {
     }
   };
 
+  const handleStartDebate = async () => {
+    setBusy(true);
+    setError(null);
+
+    try {
+      const debate = await startDebate();
+      if (appData) {
+        setAppData({ ...appData, activeDebate: debate });
+      }
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to start debate.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleSendMessage = async (content: string) => {
     setBusy(true);
     setError(null);
@@ -254,6 +271,7 @@ function App() {
           <Arena
             debate={appData.activeDebate}
             onSendMessage={handleSendMessage}
+            onStartDebate={handleStartDebate}
             onTimerExpired={handleTimerExpired}
             isSending={busy}
           />

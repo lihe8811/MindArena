@@ -110,7 +110,7 @@ export interface ActiveDebate {
   stage: string;
   awaitingUserInput?: boolean;
   timerLabel: string;
-  status: 'Ready' | 'In Progress' | 'Completed' | 'Terminated';
+  status: 'Prep' | 'Ready' | 'In Progress' | 'Completed' | 'Terminated';
   messages: DebateMessage[];
   createdAt: string;
   updatedAt: string;
