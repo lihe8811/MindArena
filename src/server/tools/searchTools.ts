@@ -14,7 +14,7 @@ export interface SearchResultItem {
   publishedDate?: string;
 }
 
-class SearchTools {
+export class SearchTools {
   private apiKey: string;
   private baseUrl = "https://api.search.brave.com/res/v1/web/search";
 
