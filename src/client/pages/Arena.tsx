@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Bot, Route, Send, Swords, UserCircle2 } from 'lucide-react';
+import { Bot, Play, Route, Send, Swords, UserCircle2 } from 'lucide-react';
 import { getDebateRoleName } from '@/shared/debatePhases';
 import type { ActiveDebate, DebateParticipant } from '@/shared/types';
 
 interface ArenaProps {
   debate: ActiveDebate | null;
   onSendMessage: (content: string) => Promise<void>;
+  onStartDebate: () => Promise<void>;
   onTimerExpired?: () => Promise<void>;
   isSending?: boolean;
 }
@@ -42,11 +43,12 @@ const defaultParticipants: DebateParticipant[] = [
   { id: 'con2', label: getDebateRoleName('con2'), side: 'Opponent', speakerOrder: 2 },
 ];
 
-export function Arena({ debate, onSendMessage, onTimerExpired, isSending }: ArenaProps) {
+export function Arena({ debate, onSendMessage, onStartDebate, onTimerExpired, isSending }: ArenaProps) {
   const [draft, setDraft] = useState('');
   const [now, setNow] = useState(() => Date.now());
   const expiredDebateId = useRef<string | null>(null);
 
+  const isPrep = debate?.status === 'Prep';
   const isDebateOpen = debate?.status === 'Ready' || debate?.status === 'In Progress';
   const participants = debate?.participants?.length === 4 ? debate.participants : defaultParticipants;
   const speakerRole = debate?.speakerRole ?? (debate?.stance === 'Opponent' ? 'con1' : 'pro1');
@@ -116,7 +118,7 @@ export function Arena({ debate, onSendMessage, onTimerExpired, isSending }: Aren
           </div>
           <div className="flex items-center justify-between">
             <span className="text-secondary">Status</span>
-            <span className="font-bold text-primary">{debate.status}</span>
+            <span className={`font-bold ${isPrep ? 'text-tertiary' : 'text-primary'}`}>{debate.status}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-secondary">Timer</span>
@@ -249,16 +251,33 @@ export function Arena({ debate, onSendMessage, onTimerExpired, isSending }: Aren
           })}
         </div>
 
-        <form
-          className="border-t border-outline-variant p-4"
-          onSubmit={async (event) => {
-            event.preventDefault();
-            const trimmed = draft.trim();
-            if (!trimmed) return;
-            await onSendMessage(trimmed);
-            setDraft('');
-          }}
-        >
+        {isPrep ? (
+          <div className="border-t border-outline-variant p-6 flex flex-col items-center justify-center gap-4 bg-surface-container-low/50">
+            <div className="text-center">
+              <p className="text-sm font-bold text-on-surface">Prep Time</p>
+              <p className="text-xs text-secondary mt-1">Review the topic and click Start when you are ready.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void onStartDebate()}
+              disabled={isSending}
+              className="flex items-center gap-2 rounded-2xl bg-tertiary px-6 py-3 text-on-tertiary font-bold disabled:opacity-60"
+            >
+              <Play className="w-5 h-5" />
+              Start Debate
+            </button>
+          </div>
+        ) : (
+          <form
+            className="border-t border-outline-variant p-4"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              const trimmed = draft.trim();
+              if (!trimmed) return;
+              await onSendMessage(trimmed);
+              setDraft('');
+            }}
+          >
           <div className="relative">
             <textarea
               value={draft}
@@ -289,7 +308,8 @@ export function Arena({ debate, onSendMessage, onTimerExpired, isSending }: Aren
               <span className="text-xs font-bold">{shortcutHint}</span>
             </button>
           </div>
-        </form>
+          </form>
+        )}
       </section>
     </div>
   );

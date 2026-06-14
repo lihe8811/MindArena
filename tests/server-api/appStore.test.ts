@@ -186,7 +186,7 @@ describe('app store debate transcript', () => {
 
     const beforeExpiry = expireDebateIfTimeElapsed(userId!, new Date(expiresAt - 1));
     expect(beforeExpiry).toMatchObject({
-      status: 'Ready',
+      status: 'Prep',
       stage: 'setup',
     });
 

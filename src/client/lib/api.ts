@@ -90,6 +90,12 @@ export function createDebate(payload: DebateSetup) {
   });
 }
 
+export function startDebate() {
+  return request<ActiveDebate>('/api/debates/current/start', {
+    method: 'POST',
+  });
+}
+
 export function sendDebateMessage(content: string) {
   return request<ActiveDebate>('/api/debates/current/messages', {
     method: 'POST',

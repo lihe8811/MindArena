@@ -2,6 +2,7 @@ import {
   enterDebatePhase,
   getActiveDebate,
   recordDebateUserInput,
+  startDebateForUser,
 } from '../stores/appStore.ts';
 import {
   getNextDebatePhase,
@@ -11,6 +12,19 @@ import type { ActiveDebate } from '@/shared/types';
 
 export class RoundOrchestrator {
   static initializeRound(userId: string) {
+    return this.advanceUntilUserInput(userId, 'setup');
+  }
+
+  static startDebate(userId: string) {
+    const debate = getActiveDebate(userId);
+    if (!debate) {
+      throw new Error('No active debate found.');
+    }
+    if (debate.status !== 'Prep') {
+      throw new Error('Debate has already started.');
+    }
+
+    startDebateForUser(userId);
     return this.advanceUntilUserInput(userId, 'setup');
   }
 
