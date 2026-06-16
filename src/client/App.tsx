@@ -25,6 +25,24 @@ function LoadingScreen() {
     </div>
   );
 }
+
+function LoadErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center px-6">
+      <div className="max-w-md rounded-2xl border border-error/30 bg-error/10 p-6 text-center">
+        <p className="text-xl font-black text-on-surface">MindArena could not load</p>
+        <p className="mt-3 text-sm leading-6 text-secondary">{message}</p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-5 rounded-full bg-primary px-5 py-2 text-sm font-bold text-on-primary"
+        >
+          Retry
+        </button>
+      </div>
+    </div>
+  );
+}
 import { Menu } from 'lucide-react';
 import { Sidebar } from './components/Navigation';
 import { NotificationModal } from './components/NotificationModal';
@@ -72,22 +90,25 @@ function App() {
     return data;
   }, []);
 
-  useEffect(() => {
-    const bootstrap = async () => {
-      try {
-        await refreshApp();
-      } catch (requestError) {
-        setError(requestError instanceof Error ? requestError.message : 'Failed to load the app.');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const bootstrapApp = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
+    try {
+      await refreshApp();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Failed to load the app.');
+    } finally {
+      setLoading(false);
+    }
+  }, [refreshApp]);
+
+  useEffect(() => {
     console.log('%cMindArena', 'color:oklch(52% 0.19 62);font-size:22px;font-weight:900;font-family:Geist,sans-serif');
     console.log('%cYou found the debug console. The whole debate engine is plain TypeScript — nothing magic.', 'color:#888;font-size:12px');
 
-    void bootstrap();
-  }, [refreshApp]);
+    void bootstrapApp();
+  }, [bootstrapApp]);
 
   const handleLogin = async (email: string, password: string) => {
     if (!email.trim() || !password.trim()) {
@@ -225,8 +246,19 @@ function App() {
     }
   };
 
-  if (loading || !appData) {
+  if (loading) {
     return <LoadingScreen />;
+  }
+
+  if (!appData) {
+    return (
+      <LoadErrorScreen
+        message={error ?? 'The bootstrap request did not return app data. Make sure the server is running on port 3001.'}
+        onRetry={() => {
+          void bootstrapApp();
+        }}
+      />
+    );
   }
 
   const renderView = () => {

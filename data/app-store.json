@@ -21,6 +21,28 @@
       "emailVerified": true,
       "emailVerifiedAt": "2026-06-03T07:33:58.553Z",
       "passwordReset": null
+    },
+    {
+      "id": "user-3bb1f252-cf10-4883-b569-ab138ff7357a",
+      "name": "Lawrence",
+      "email": "hello@shsid.com",
+      "title": "Logic Apprentice",
+      "streak": 1,
+      "createdAt": "2026-06-14T02:14:38.561Z",
+      "settings": {
+        "displayName": "Lawrence",
+        "title": "Logic Apprentice",
+        "defaultStance": "Proponent",
+        "defaultRigor": 3,
+        "emailNotifications": true,
+        "rememberSession": true,
+        "compactSidebar": false,
+        "autoOpenArena": true
+      },
+      "passwordHash": "7ade400b5f3c8d95dc95601759d2d2c7:daddff200fb8ea9a789b7e2de9b020d45d37341854a271ba1f2da979bf84605580cee12c4c386f3ec1f248c2ddf961dabb3618cfcd576da1a8061d287789d075",
+      "emailVerified": true,
+      "emailVerifiedAt": "2026-06-14T02:14:38.561Z",
+      "passwordReset": null
     }
   ],
   "sessions": [
@@ -35,6 +57,12 @@
       "userId": "user-29f69c1a-1fcd-42da-beae-2ae51e2e6205",
       "createdAt": "2026-06-07T00:48:12.181Z",
       "expiresAt": "2026-07-07T00:48:12.181Z"
+    },
+    {
+      "token": "97f25691-c196-4c7f-aa75-309cd8d8d138",
+      "userId": "user-3bb1f252-cf10-4883-b569-ab138ff7357a",
+      "createdAt": "2026-06-14T02:14:38.604Z",
+      "expiresAt": "2026-07-14T02:14:38.604Z"
     }
   ],
   "debates": [
@@ -196,6 +224,183 @@
       ],
       "opponent": "Rival AI (Level 3)",
       "domain": "General Policy"
+    },
+    {
+      "id": "debate-33bf7a32-d734-4e25-8b5d-2d75c35b2fff",
+      "userId": "user-3bb1f252-cf10-4883-b569-ab138ff7357a",
+      "topic": "Universities should require every student to take a formal logic course.",
+      "stance": "Proponent",
+      "speakerRole": "pro1",
+      "rigor": 3,
+      "knowledgeDocumentIds": [],
+      "stage": "Verdict",
+      "awaitingUserInput": true,
+      "timerLabel": "00:00",
+      "status": "Terminated",
+      "messages": [
+        {
+          "id": "msg-79e28ad1-71eb-4e4a-9c50-b38feae15974",
+          "role": "system",
+          "author": "Moderator",
+          "time": "10:15",
+          "content": "Debate created. You are First Pro Speaker on the proponent side for: \"Universities should require every student to take a formal logic course.\"."
+        },
+        {
+          "id": "msg-0ee46f2f-92cf-405d-b284-24f6fb944868",
+          "role": "system",
+          "author": "Moderator",
+          "time": "10:15",
+          "content": "Phase: setup"
+        },
+        {
+          "id": "msg-b1273430-40a2-48d0-b349-2ff49a1b4f0a",
+          "role": "system",
+          "author": "Moderator",
+          "time": "10:15",
+          "content": "Phase: judge_opening"
+        },
+        {
+          "id": "msg-45bd803d-6db4-4786-9a7e-37514fbabf60",
+          "role": "system",
+          "author": "Moderator",
+          "time": "10:15",
+          "content": "Phase: student_prep_optional"
+        },
+        {
+          "id": "msg-fdfb92f6-aa99-4c3b-ba47-09e1cf1a5ded",
+          "role": "system",
+          "author": "Moderator",
+          "time": "10:15",
+          "content": "Phase: constructive_pro"
+        },
+        {
+          "id": "msg-b0b84a20-2d1b-4a1b-a286-2a5ba0fa21ef",
+          "role": "user",
+          "author": "First Pro Speaker",
+          "time": "10:15",
+          "content": "hello"
+        },
+        {
+          "id": "msg-ee8e7962-9f87-4f36-bf5a-2cd9dc26ecf4",
+          "role": "system",
+          "author": "Moderator",
+          "time": "10:15",
+          "content": "Phase: constructive_con"
+        },
+        {
+          "id": "msg-ea1ace83-0620-424b-827a-c63d1b73b51e",
+          "role": "system",
+          "author": "Moderator",
+          "time": "10:15",
+          "content": "Phase: crossfire_1"
+        },
+        {
+          "id": "msg-3244a5c3-689e-4acd-b268-c65ee87fd6d3",
+          "role": "user",
+          "author": "First Pro Speaker",
+          "time": "10:15",
+          "content": "hello"
+        },
+        {
+          "id": "msg-2707519e-e4e4-42b0-96a5-662f8895768a",
+          "role": "system",
+          "author": "Moderator",
+          "time": "10:15",
+          "content": "Phase: rebuttal_pro"
+        },
+        {
+          "id": "msg-14f4f389-0c59-4f49-a5a0-a39b687d3266",
+          "role": "system",
+          "author": "Moderator",
+          "time": "10:15",
+          "content": "Phase: rebuttal_con"
+        },
+        {
+          "id": "msg-b71f0309-2a75-49f2-9546-05bf74ca9351",
+          "role": "system",
+          "author": "Moderator",
+          "time": "10:15",
+          "content": "Phase: crossfire_2"
+        },
+        {
+          "id": "msg-5d47ca24-24a2-430c-88b9-97a2c6bd3817",
+          "role": "system",
+          "author": "Moderator",
+          "time": "10:15",
+          "content": "Phase: summary_pro"
+        },
+        {
+          "id": "msg-a036af13-2dbc-493f-a5f9-ee5eb3f82203",
+          "role": "user",
+          "author": "First Pro Speaker",
+          "time": "10:15",
+          "content": "hello"
+        },
+        {
+          "id": "msg-7075957e-89d5-4e47-98a0-920716850ed0",
+          "role": "system",
+          "author": "Moderator",
+          "time": "10:15",
+          "content": "Phase: summary_con"
+        },
+        {
+          "id": "msg-d0a387da-5676-4349-b8fd-e127112d55a0",
+          "role": "system",
+          "author": "Moderator",
+          "time": "10:15",
+          "content": "Phase: grand_crossfire"
+        },
+        {
+          "id": "msg-d19dbd30-6545-4da7-b55c-55a51fa45367",
+          "role": "system",
+          "author": "Moderator",
+          "time": "10:19",
+          "content": "Time expired. The debate has ended."
+        }
+      ],
+      "createdAt": "2026-06-14T02:15:03.216Z",
+      "updatedAt": "2026-06-14T02:19:03.321Z",
+      "participants": [
+        {
+          "id": "pro1",
+          "label": "First Pro Speaker",
+          "side": "Proponent",
+          "speakerOrder": 1
+        },
+        {
+          "id": "pro2",
+          "label": "Second Pro Speaker",
+          "side": "Proponent",
+          "speakerOrder": 2
+        },
+        {
+          "id": "con1",
+          "label": "First Con Speaker",
+          "side": "Opponent",
+          "speakerOrder": 1
+        },
+        {
+          "id": "con2",
+          "label": "Second Con Speaker",
+          "side": "Opponent",
+          "speakerOrder": 2
+        }
+      ],
+      "opponent": "Rival AI (Level 3)",
+      "domain": "General Policy",
+      "score": 96
     }
-  ]
+  ],
+  "notifications": [
+    {
+      "id": "notification-be07a5cb-91a7-4227-90cb-fa2d2cc368b8",
+      "userId": "user-3bb1f252-cf10-4883-b569-ab138ff7357a",
+      "debateId": "debate-33bf7a32-d734-4e25-8b5d-2d75c35b2fff",
+      "status": "Terminated",
+      "title": "Debate terminated",
+      "message": "Your debate \"Universities should require every student to take a formal logic course.\" was terminated because time expired.",
+      "createdAt": "2026-06-14T02:19:03.321Z"
+    }
+  ],
+  "dismissedNotifications": []
 }
