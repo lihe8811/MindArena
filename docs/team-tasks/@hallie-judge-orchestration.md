@@ -11,18 +11,30 @@
 - `src/server/prompts/judge.md`
 - `src/server/prompts/sharedRules.md`
 
-## TODO
+## Status Snapshot
 
-- [ ] Define NHSDLC phase ordering and helper functions such as `nextPhase`, terminal phase detection, active side, active speaker, and allowed actions.
-- [ ] Implement the Round Orchestrator as the single source of truth for sequencing.
-- [ ] Route setup, student input, round advancement, agent runs, timer checks, evidence interruptions, and judge feedback through the orchestrator.
-- [ ] Implement Judge Agent output for winner, reason for decision, speaker points, key issues, rule notes, and improvement suggestions.
-- [ ] Keep agents from deciding who speaks next.
-- [ ] Expose Express routes for creating a debate session, submitting student input, advancing the round, getting current round state, and returning transcript/timer events.
-- [ ] Coordinate with [@Oscar](https://github.com/Oscar-The-Great) on timer, rules, evidence interruptions, and transcript service contracts.
+Reviewed against current code on 2026-06-16.
+
+## Completed
+
+- [x] Define the 17-phase NHSDLC order in `src/shared/debatePhases.ts`.
+- [x] Add helpers for next phase, role names, role-owned user phases, and phase waiting state.
+- [x] Implement `RoundOrchestrator` as the current source of truth for phase-marker sequencing and user-turn gating.
+- [x] Add Judge Agent factory support, prompt template, and mock fallback output.
+- [x] Keep agents from deciding phase order; phase sequencing is deterministic.
+- [x] Expose current debate creation, start, message submission, current-state, and expiration routes in `src/server/index.ts`.
+
+## Remaining
+
+- [ ] Add explicit active side, active speaker, allowed-action, and terminal-phase helpers beyond the current user-phase ownership checks.
+- [ ] Route agent runs, timer checks, evidence interruptions, and judge feedback through the orchestrator; current live orchestration does not invoke agents or runtime services.
+- [ ] Persist Judge Agent decisions as structured winner, reason for decision, speaker points, key issues, rule notes, and improvement suggestions.
+- [ ] Extract debate routes to `src/server/api/debateRoutes.ts` once [@Emma](https://github.com/shzh0828-dotcom) splits API modules.
+- [ ] Coordinate with [@Oscar](https://github.com/Oscar-The-Great) on timer, rules, evidence interruption, and transcript service contracts.
 
 ## Suggested Verification
 
 - `bun run lint`
-- Integration tests with mocked agent SDK calls when test setup exists.
+- `bun test tests/orchestration/roundOrchestrator.test.ts`
+- Integration tests with mocked agent SDK calls.
 - `curl` route smoke checks against port `3001`.

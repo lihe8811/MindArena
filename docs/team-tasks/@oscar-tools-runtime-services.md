@@ -12,18 +12,28 @@
 - `src/server/guardrails/outputGuardrails.ts`
 - `src/server/guardrails/toolGuardrails.ts`
 
-## TODO
+## Status Snapshot
+
+Reviewed against current code on 2026-06-16.
+
+## Completed
 
 - [x] Implement timer service for speech time, prep time, pause/resume, expiration, and UI event payloads.
 - [x] Implement evidence clerk logic for recording claims, checking citation completeness, showing evidence in full/context, and reporting evidence problems.
 - [x] Implement deterministic rules marshal checks for wrong side, wrong speaker role, illegal prep timing, excessive partner assistance, and new final-focus arguments.
 - [x] Implement transcript service for appending, listing, summarizing, and filtering transcript events by phase/session.
 - [x] Implement calculator and evidence tools as callable backend functions for agents and orchestrator.
+- [x] Implement Brave search tools with deterministic unit tests and injectable fetch/API key configuration.
+- [x] Implement Neon-backed rules lookup tools with unit tests.
 - [x] Keep timer as a backend service, not an agent tool.
 - [x] Keep rules marshal deterministic for MVP; only add an internal agent later if deterministic checks are insufficient.
+
+## Remaining
+
 - [ ] Coordinate with [@TT](https://github.com/LOLandXD) on retrieval interfaces and with [@Hallie](https://github.com/Hallie-Lunalg) on orchestrator interruption behavior.
+- [ ] Wire timer, rules, evidence, transcript, search, and rules tools into live debate orchestration once contracts are finalized.
 
 ## Suggested Verification
 
 - `bun run lint`
-- Unit tests for timer, citation completeness, rule checks, and transcript appends once a test runner is added.
+- `bun test tests/runtime-services`

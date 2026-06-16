@@ -8,15 +8,26 @@
 - `src/client/lib/api.ts`
 - `src/client/index.css`
 
-## TODO
+## Status Snapshot
 
-- [ ] Update the UI around the planned NHSDLC round flow: setup, judge opening, constructive speeches, crossfires, rebuttals, summaries, final focus, judge feedback, complete.
-- [ ] Add client state and view behavior for active round phase, active speaker, timer labels, allowed actions, transcript events, evidence-check requests, and judge feedback.
-- [ ] Extend `src/client/lib/api.ts` to call the new Express route modules once [@Emma](https://github.com/shzh0828-dotcom), [@TT](https://github.com/LOLandXD), and [@Hallie](https://github.com/Hallie-Lunalg) expose them.
-- [ ] Keep the current authentication, dashboard, history, performance, and debate-start flows working.
-- [ ] Add loading, empty, error, and disabled states for actions that are blocked by phase, timer, or auth.
-- [ ] Coordinate with [@Emma](https://github.com/shzh0828-dotcom) and [@TT](https://github.com/LOLandXD) on `AppBootstrap`, `ActiveDebate`, `TranscriptEvent`, and evidence response shapes.
-- [ ] Coordinate with [@Hallie](https://github.com/Hallie-Lunalg) on the client contract for advancing a round and submitting student input.
+Reviewed against current code on 2026-06-16.
+
+## Completed
+
+- [x] Show phase-marker round flow and selected speaker role in the debate UI.
+- [x] Add Start Debate behavior and API call.
+- [x] Gate the textarea and send button on `awaitingUserInput`, debate status, and timer state.
+- [x] Show role phase assignments in the debate setup UI.
+- [x] Keep authentication, dashboard, history, performance, notification, and debate-start flows wired through `src/client/App.tsx` and `src/client/lib/api.ts`.
+- [x] Add notification modal, unread badge, dismissal state, and client source tests.
+
+## Remaining
+
+- [ ] Replace phase-marker-only copy with live agent speech, evidence interruption, and judge feedback states after backend orchestration is wired.
+- [ ] Add UI for active speaker, allowed actions, transcript event types, evidence-check requests, structured judge decision, and speaker points.
+- [ ] Extend `src/client/lib/api.ts` when [@Emma](https://github.com/shzh0828-dotcom) extracts route modules or changes endpoint contracts.
+- [ ] Add loading, empty, error, and disabled states for future asynchronous agent and evidence actions.
+- [ ] Coordinate with [@Emma](https://github.com/shzh0828-dotcom), [@TT](https://github.com/LOLandXD), and [@Hallie](https://github.com/Hallie-Lunalg) on `AppBootstrap`, `ActiveDebate`, `TranscriptEvent`, and evidence response shapes.
 
 ## Suggested Verification
     

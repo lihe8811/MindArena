@@ -11,17 +11,28 @@
 - `src/server/prompts/teammate.md`
 - relevant output types in `src/shared/schemas/agentOutputs.ts`
 
-## TODO
+## Status Snapshot
 
-- [ ] Implement Rival A and Teammate first for MVP. Leave Rival B behind the same factory interface if time is tight.
-- [ ] Make each agent speak only when called by the orchestrator. Do not implement agent-to-agent handoffs.
-- [ ] Build prompts from role, side, phase, difficulty, active speaker, allowed actions, and role-aware retrieved context.
-- [ ] Keep teammate coaching bounded to allowed prep/coaching windows and prevent hidden opponent strategy leakage.
-- [ ] Attach only approved tools from [@TT](https://github.com/LOLandXD) and [@Oscar](https://github.com/Oscar-The-Great).
-- [ ] Return structured speech or coaching output using shared schemas.
-- [ ] Add tests or test doubles proving each agent factory exposes no auto-handoff behavior.
+Reviewed against current code on 2026-06-16.
+
+## Completed
+
+- [x] Implement Rival A, Rival B, and Teammate factory functions.
+- [x] Register Rival A, Rival B, Teammate, and Judge in `AgentFactory`.
+- [x] Keep agent handoffs disabled in the factory-created agents.
+- [x] Build agent prompts from side, topic, phase, rigor/context, and performance context where applicable.
+- [x] Define shared speech and coaching schemas in `src/shared/schemas/agentOutputs.ts`.
+
+## Remaining
+
+- [ ] Wire Rival and Teammate agent execution into the live `RoundOrchestrator`; current orchestration advances phase markers without calling agents.
+- [ ] Add role-aware retrieved context once [@TT](https://github.com/LOLandXD) exposes retrieval contracts.
+- [ ] Attach only approved runtime tools from [@TT](https://github.com/LOLandXD) and [@Oscar](https://github.com/Oscar-The-Great) after the tool contracts are finalized.
+- [ ] Enforce teammate coaching windows at the orchestrator/API boundary so coaching cannot leak hidden opponent strategy.
+- [ ] Validate actual agent outputs against `SpeechSchema` and `CoachingSchema`; current guardrails only report validation success.
+- [ ] Add factory tests or test doubles proving all agents expose no auto-handoff behavior.
 
 ## Suggested Verification
 
 - `bun run lint`
-- Factory tests with mocked SDK calls once the test setup exists.
+- Factory tests with mocked OpenAI SDK calls.
