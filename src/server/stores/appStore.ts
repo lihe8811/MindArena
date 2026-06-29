@@ -772,6 +772,33 @@ export function recordDebateUserInput(userId: string, content: string) {
   return debate;
 }
 
+export function recordDebateAgentMessage(
+  userId: string,
+  content: string,
+  author: string,
+) {
+  const store = loadStore();
+  const debate = [...store.debates]
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
+    .find((entry) => entry.userId === userId && !isDebateTerminal(entry.status));
+
+  if (!debate) {
+    throw new Error('No active debate.');
+  }
+
+  debate.messages.push({
+    id: randomId('msg'),
+    role: 'assistant',
+    author,
+    time: nowLabel(),
+    content,
+  });
+  debate.updatedAt = nowIso();
+
+  saveStore(store);
+  return debate;
+}
+
 export function expireDebateIfTimeElapsed(userId: string, currentTime = new Date()) {
   const store = loadStore();
   const debate = [...store.debates]

@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { phaseWaitsForUser, type DebatePhase } from '../../src/shared/debatePhases';
 import type { ActiveDebate, DebateMessage } from '../../src/shared/types';
+import * as originalAppStore from '../../src/server/stores/appStore.ts';
 
 const mockState = {
   debate: null as ActiveDebate | null,
@@ -22,7 +23,13 @@ function appendMessage(
 }
 
 mock.module('../../src/server/stores/appStore.ts', () => ({
+  ...originalAppStore,
   getActiveDebate: () => mockState.debate,
+  startDebateForUser: () => {
+    const debate = mockState.debate!;
+    debate.status = 'Ready';
+    return debate;
+  },
   enterDebatePhase: (_userId: string, phase: DebatePhase) => {
     const debate = mockState.debate!;
     debate.stage = phase;
@@ -39,6 +46,17 @@ mock.module('../../src/server/stores/appStore.ts', () => ({
     appendMessage(debate, 'user', 'First Pro Speaker', content);
     debate.awaitingUserInput = false;
     return debate;
+  },
+  recordDebateAgentMessage: (_userId: string, content: string, author: string) => {
+    const debate = mockState.debate!;
+    appendMessage(debate, 'assistant', author, content);
+    return debate;
+  },
+}));
+
+mock.module('../../src/server/agents/agentRunner.ts', () => ({
+  defaultAgentRunner: {
+    runForPhase: async () => null,
   },
 }));
 
@@ -61,9 +79,13 @@ beforeEach(() => {
   };
 });
 
+afterAll(() => {
+  mock.restore();
+});
+
 describe('RoundOrchestrator', () => {
-  test('prints automatic phases and pauses at the first user phase', () => {
-    const debate = RoundOrchestrator.initializeRound('user-1');
+  test('prints automatic phases and pauses at the first user phase', async () => {
+    const debate = await RoundOrchestrator.initializeRound('user-1');
 
     expect(debate.stage).toBe('constructive_pro');
     expect(debate.awaitingUserInput).toBe(true);
@@ -76,10 +98,10 @@ describe('RoundOrchestrator', () => {
     expect(debate.messages.some((message) => message.role === 'assistant')).toBe(false);
   });
 
-  test('records user input then advances through automatic phases to crossfire', () => {
-    RoundOrchestrator.initializeRound('user-1');
+  test('records user input then advances through automatic phases to crossfire', async () => {
+    await RoundOrchestrator.initializeRound('user-1');
 
-    const debate = RoundOrchestrator.processTurn('user-1', 'My constructive speech.');
+    const debate = await RoundOrchestrator.processTurn('user-1', 'My constructive speech.');
 
     expect(debate.stage).toBe('crossfire_1');
     expect(debate.awaitingUserInput).toBe(true);
@@ -91,28 +113,28 @@ describe('RoundOrchestrator', () => {
     expect(debate.messages.some((message) => message.role === 'assistant')).toBe(false);
   });
 
-  test('opponent users pause at con-side speeches', () => {
+  test('opponent users pause at con-side speeches', async () => {
     mockState.debate!.stance = 'Opponent';
     mockState.debate!.speakerRole = 'con1';
 
-    const debate = RoundOrchestrator.initializeRound('user-1');
+    const debate = await RoundOrchestrator.initializeRound('user-1');
 
     expect(debate.stage).toBe('constructive_con');
     expect(debate.messages.map((message) => message.content)).toContain('Phase: constructive_pro');
     expect(debate.awaitingUserInput).toBe(true);
   });
 
-  test('second pro speaker skips first-speaker rows and pauses at rebuttal', () => {
+  test('second pro speaker skips first-speaker rows and pauses at rebuttal', async () => {
     mockState.debate!.speakerRole = 'pro2';
 
-    const debate = RoundOrchestrator.initializeRound('user-1');
+    const debate = await RoundOrchestrator.initializeRound('user-1');
 
     expect(debate.stage).toBe('rebuttal_pro');
     expect(debate.messages.map((message) => message.content)).toContain('Phase: crossfire_1');
     expect(debate.awaitingUserInput).toBe(true);
   });
 
-  test('rejects input when the current phase is automatic', () => {
+  test('rejects input when the current phase is automatic', async () => {
     mockState.debate!.stage = 'judge_opening';
     mockState.debate!.awaitingUserInput = false;
     mockState.debate!.status = 'In Progress';
