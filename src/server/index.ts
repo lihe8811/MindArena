@@ -446,12 +446,12 @@ app.post('/api/debates', async (req, res) => {
   res.status(201).json(getActiveDebate(user.id) ?? debate);
 });
 
-app.post('/api/debates/current/start', (req, res) => {
+app.post('/api/debates/current/start', async (req, res) => {
   const user = requireAuth(req, res);
   if (!user) return;
 
   try {
-    const debate = RoundOrchestrator.startDebate(user.id);
+    const debate = await RoundOrchestrator.startDebate(user.id);
     res.json(debate);
   } catch (error) {
     res.status(409).send(error instanceof Error ? error.message : 'Unable to start debate.');

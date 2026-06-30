@@ -1,9 +1,11 @@
 import {
   enterDebatePhase,
   getActiveDebate,
+  recordDebateAgentMessage,
   recordDebateUserInput,
   startDebateForUser,
 } from '../stores/appStore.ts';
+import { defaultAgentRunner, type AgentRunner } from '../agents/agentRunner.ts';
 import {
   getNextDebatePhase,
   type DebatePhase,
@@ -11,11 +13,13 @@ import {
 import type { ActiveDebate } from '@/shared/types';
 
 export class RoundOrchestrator {
-  static initializeRound(userId: string) {
+  static agentRunner: AgentRunner = defaultAgentRunner;
+
+  static async initializeRound(userId: string) {
     return this.advanceUntilUserInput(userId, 'setup');
   }
 
-  static startDebate(userId: string) {
+  static async startDebate(userId: string) {
     const debate = getActiveDebate(userId);
     if (!debate) {
       throw new Error('No active debate found.');
@@ -28,7 +32,7 @@ export class RoundOrchestrator {
     return this.advanceUntilUserInput(userId, 'setup');
   }
 
-  static processTurn(userId: string, content: string) {
+  static async processTurn(userId: string, content: string) {
     const debate = getActiveDebate(userId);
     if (!debate) {
       throw new Error('No active debate found.');
@@ -46,10 +50,10 @@ export class RoundOrchestrator {
     return this.advanceUntilUserInput(userId, nextPhase);
   }
 
-  private static advanceUntilUserInput(
+  private static async advanceUntilUserInput(
     userId: string,
     startingPhase: DebatePhase,
-  ): ActiveDebate {
+  ): Promise<ActiveDebate> {
     let phase: DebatePhase | null = startingPhase;
     let debate: ActiveDebate | null = null;
 
@@ -58,6 +62,16 @@ export class RoundOrchestrator {
       if (debate.awaitingUserInput || debate.status === 'Completed') {
         return debate;
       }
+
+      const agentResult = await this.agentRunner.runForPhase(debate, phase);
+      if (agentResult) {
+        debate = recordDebateAgentMessage(
+          userId,
+          agentResult.content,
+          agentResult.author,
+        );
+      }
+
       phase = getNextDebatePhase(phase);
     }
 

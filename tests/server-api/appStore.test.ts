@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -17,6 +17,10 @@ import {
   registerUser,
 } from '../../src/server/stores/appStore';
 import { RoundOrchestrator } from '../../src/server/orchestration/roundOrchestrator';
+
+beforeEach(() => {
+  RoundOrchestrator.agentRunner = { runForPhase: async () => null };
+});
 
 const storePath = path.join(import.meta.dir, '../../data/app-store.json');
 const originalStore = fs.existsSync(storePath) ? fs.readFileSync(storePath, 'utf8') : null;
@@ -289,7 +293,7 @@ describe('app store debate transcript', () => {
     expect(listUserNotifications(ownerId)).toEqual([]);
   });
 
-  test('runs the complete documented phase sequence without agent speeches', () => {
+  test('runs the complete documented phase sequence without agent speeches', async () => {
     const auth = registerUser({
       name: 'Phase Orchestrator',
       email: `phase-orchestrator-${crypto.randomUUID()}@example.com`,
@@ -304,7 +308,7 @@ describe('app store debate transcript', () => {
       knowledgeDocumentIds: [],
     });
 
-    let debate = RoundOrchestrator.initializeRound(userId);
+    let debate = await RoundOrchestrator.initializeRound(userId);
     const userPhases = [
       'constructive_pro',
       'crossfire_1',
@@ -312,11 +316,11 @@ describe('app store debate transcript', () => {
       'grand_crossfire',
     ];
 
-    userPhases.forEach((expectedPhase, index) => {
+    for (const [index, expectedPhase] of userPhases.entries()) {
       expect(debate.stage).toBe(expectedPhase);
       expect(debate.awaitingUserInput).toBe(true);
-      debate = RoundOrchestrator.processTurn(userId, `Student response ${index + 1}`);
-    });
+      debate = await RoundOrchestrator.processTurn(userId, `Student response ${index + 1}`);
+    }
 
     expect(debate).toMatchObject({
       stage: 'complete',
@@ -355,7 +359,7 @@ describe('app store debate transcript', () => {
     ]);
   });
 
-  test('second pro speaker only waits on second-speaker rows', () => {
+  test('second pro speaker only waits on second-speaker rows', async () => {
     const auth = registerUser({
       name: 'Second Pro',
       email: `second-pro-${crypto.randomUUID()}@example.com`,
@@ -371,13 +375,13 @@ describe('app store debate transcript', () => {
       knowledgeDocumentIds: [],
     });
 
-    let debate = RoundOrchestrator.initializeRound(userId);
+    let debate = await RoundOrchestrator.initializeRound(userId);
     const userPhases = ['rebuttal_pro', 'crossfire_2', 'grand_crossfire', 'final_focus_pro'];
 
-    userPhases.forEach((expectedPhase, index) => {
+    for (const [index, expectedPhase] of userPhases.entries()) {
       expect(debate.stage).toBe(expectedPhase);
-      debate = RoundOrchestrator.processTurn(userId, `Second pro response ${index + 1}`);
-    });
+      debate = await RoundOrchestrator.processTurn(userId, `Second pro response ${index + 1}`);
+    }
 
     expect(debate.status).toBe('Completed');
     expect(
