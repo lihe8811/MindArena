@@ -14,7 +14,7 @@ export class AgentFactory {
   /**
    * Creates an agent based on the specified type and configuration.
    */
-  static async createAgent(type: AgentType, config: any): Promise<Agent> {
+  static async createAgent(type: AgentType, config: any): Promise<Agent<any, any>> {
     switch (type) {
       case 'RivalA':
         return await createRivalAgentA(config as RivalAgentAConfig);

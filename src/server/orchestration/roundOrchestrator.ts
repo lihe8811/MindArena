@@ -30,6 +30,7 @@ import { callJudgeAgent } from '../agents/judgeAgent';
 import { createRivalAgentA, type RivalAgentAConfig } from '../agents/rivalAgentA';
 import { createRivalAgentB, type RivalAgentBConfig } from '../agents/rivalAgentB';
 import { createTeammateAgent, type TeammateAgentConfig } from '../agents/teammateAgent';
+import type { AgentRunner } from '../agents/agentRunner.ts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -272,6 +273,8 @@ function getAgentsForPhase(
 // ---------------------------------------------------------------------------
 
 export class RoundOrchestrator {
+  static agentRunner: AgentRunner | null = null;
+
   static initializeRound(userId: string) {
     return this.advanceUntilUserInput(userId, 'setup');
   }
@@ -377,6 +380,8 @@ export class RoundOrchestrator {
 
       if (role === 'teammate') {
         const config: TeammateAgentConfig = {
+          debateId: sessionId,
+          studentId: userId,
           side: studentSide as 'Proponent' | 'Opponent',
           topic,
           phase,
@@ -398,6 +403,9 @@ export class RoundOrchestrator {
 
       if (role === 'rival_a') {
         const config: RivalAgentAConfig = {
+          debateId: sessionId,
+          speakerId: 'rival-a',
+          speakerRole: rivalSide === 'Proponent' ? 'pro1' : 'con1',
           side: rivalSide as 'Proponent' | 'Opponent',
           topic,
           phase,
@@ -419,6 +427,9 @@ export class RoundOrchestrator {
 
       if (role === 'rival_b') {
         const config: RivalAgentBConfig = {
+          debateId: sessionId,
+          speakerId: 'rival-b',
+          speakerRole: rivalSide === 'Proponent' ? 'pro2' : 'con2',
           side: rivalSide as 'Proponent' | 'Opponent',
           topic,
           phase,
